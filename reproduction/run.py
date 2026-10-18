@@ -1,0 +1,197 @@
+"""Pretrain UniGraph2 on local MM-Graph domains and evaluate a frozen NC encoder."""
+import argparse
+import copy
+import hashlib
+import json
+import os
+import random
+import time
+from pathlib import Path
+import numpy as np
+import torch
+from torch import nn
+from torch.nn import functional as F
+from graph_data import read_graph, ppr_nodes, spd_targets
+from model import UniGraph2
+
+
+def seed_all(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
+def probe(embeddings, y, splits, seed, epochs=5000, patience=100):
+    seed_all(seed)
+    x = F.normalize(embeddings.detach(), dim=-1)
+    indices = {}
+    for name, aliases in {'train':['train','train_idx'], 'valid':['valid','val','val_idx'], 'test':['test','test_idx']}.items():
+        key = next(k for k in aliases if k in splits)
+        idx = torch.as_tensor(splits[key], dtype=torch.long, device=x.device)
+        indices[name] = idx[y[idx] >= 0]
+        if not indices[name].numel():
+            raise ValueError(f'empty labeled {name} split')
+    for a,b in [('train','valid'),('train','test'),('valid','test')]:
+        if set(indices[a].tolist()) & set(indices[b].tolist()):
+            raise ValueError('overlapping evaluation splits')
+    head = nn.Linear(x.shape[1], int(y[y>=0].max())+1).to(x.device)
+    opt = torch.optim.Adam(head.parameters(), lr=.01)
+    best, state, selected, stale = -1., None, 0, 0
+    for epoch in range(1, epochs+1):
+        head.train()
+        logits = head(x[indices['train']])
+        loss = F.cross_entropy(logits, y[indices['train']])
+        opt.zero_grad(set_to_none=True)
+        loss.backward()
+        opt.step()
+        head.eval()
+        with torch.no_grad():
+            validation = (head(x[indices['valid']]).argmax(-1) == y[indices['valid']]).float().mean().item()
+        if validation > best:
+            best, state, selected, stale = validation, copy.deepcopy(head.state_dict()), epoch, 0
+        else:
+            stale += 1
+        if stale >= patience:
+            break
+    head.load_state_dict(state)
+    with torch.no_grad():
+        test = (head(x[indices['test']]).argmax(-1) == y[indices['test']]).float().mean().item()
+    return {'valid_accuracy':best, 'test_accuracy':test, 'selected_epoch':selected,
+            'epochs_run':epoch, 'split_sizes':{k:len(v) for k,v in indices.items()}}, head.state_dict()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--data-root', type=Path, default=Path('/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph'))
+    parser.add_argument('--pretrain', nargs='+', default=['cloth-copurchase'])
+    parser.add_argument('--evaluate', default='ele-fashion')
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--hidden', type=int, default=1024)
+    parser.add_argument('--layers', type=int, default=4)
+    parser.add_argument('--experts', type=int, default=8)
+    parser.add_argument('--heads', type=int, default=4)
+    parser.add_argument('--top-k', type=int, default=0, help='0 uses dense routing from paper equations; 2 matches upstream sparse routing')
+    parser.add_argument('--dropout', type=float, default=.4)
+    parser.add_argument('--mask-rate', type=float, default=.8)
+    parser.add_argument('--gamma', type=float, default=2.)
+    parser.add_argument('--lambda-spd', type=float, default=.1)
+    parser.add_argument('--epochs', type=int, default=5)
+    parser.add_argument('--steps', type=int, default=32, help='sampled subgraphs per domain per epoch, NOT full dataset epochs')
+    parser.add_argument('--subgraph-nodes', type=int, default=256)
+    parser.add_argument('--spd-pairs', type=int, default=4096)
+    parser.add_argument('--lr', type=float, default=1e-4, help='official config value; paper Table 9 lists 1e-3, which collapses here')
+    parser.add_argument('--warmup', type=float, default=.1, help='fraction of steps with linear warmup, then cosine decay; 0 is constant lr as in the paper')
+    parser.add_argument('--standardize', action=argparse.BooleanOptionalAction, default=True, help='standardize encoder input with pre-training-domain statistics (not in the paper)')
+    parser.add_argument('--weight-decay', type=float, default=.01)
+    parser.add_argument('--eval-limit', type=int, default=4096, help='first N nodes induced graph; 0 for full graph')
+    parser.add_argument('--probe-epochs', type=int, default=5000)
+    parser.add_argument('--probe-patience', type=int, default=100)
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--probe-seeds', type=int, nargs='+', default=[0,1,2])
+    parser.add_argument('--device', choices=['cpu','cuda'], default='cuda')
+    args = parser.parse_args()
+    if min(args.epochs,args.steps,args.subgraph_nodes,args.probe_epochs,args.probe_patience)<1 or args.eval_limit<0 or args.spd_pairs<0 or not 0<=args.warmup<1:
+        parser.error('invalid run limits')
+    args.output.mkdir(parents=True, exist_ok=True)
+    torch.set_num_threads(4)
+    seed_all(args.seed)
+    started = time.time()
+    graphs = [read_graph(args.data_root, name) for name in args.pretrain]
+    target = read_graph(args.data_root, args.evaluate, limit=args.eval_limit)
+    if len({g.x.shape[1] for g in graphs+[target]}) != 1:
+        raise ValueError('all domains must use the same CLIP feature space')
+    model_kwargs = dict(input_dim=graphs[0].x.shape[1], domains=args.pretrain, hidden=args.hidden,
+                        layers=args.layers, experts=args.experts, heads=args.heads, top_k=args.top_k,
+                        dropout=args.dropout, mask_rate=args.mask_rate, gamma=args.gamma, lambda_spd=args.lambda_spd)
+    model = UniGraph2(**model_kwargs).to(args.device)
+    if args.standardize:
+        features = torch.cat([g.x for g in graphs])
+        model.feature_mean.copy_(features.mean(0))
+        model.feature_std.copy_(features.std(0).clamp_min(1e-6))
+    tx, te, _ = target.subgraph(np.arange(len(target.x)))
+    tx, te = tx.to(args.device), te.to(args.device)
+    y = target.y.to(args.device)
+    print('DATA',[(g.name,len(g.x),g.x.shape[1],g.adjacency.nnz) for g in graphs+[target]], flush=True)
+    print('MODEL',model_kwargs, 'parameters',sum(p.numel() for p in model.parameters()),flush=True)
+    model.eval()
+    with torch.no_grad():
+        initial = model.encode(tx, te).detach().cpu()
+    opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    total = args.epochs * args.steps * len(graphs)
+    warm = max(1, int(args.warmup * total))
+    sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda t: min(1., (t+1)/warm) * .5*(1+np.cos(np.pi*t/total)) if args.warmup else 1.)
+    history = []
+    rng = np.random.default_rng(args.seed)
+    candidates = [np.flatnonzero(np.diff(g.adjacency.indptr)>0) for g in graphs]
+    # Cache a fixed pool of PPR subgraphs; reshuffle and remask each epoch.
+    pools = []
+    for graph, eligible in zip(graphs,candidates):
+        if len(eligible)==0:
+            raise ValueError(f'{graph.name} has no non-isolated nodes')
+        pool=[]
+        for seed in rng.choice(eligible, args.steps, replace=len(eligible)<args.steps):
+            ids=ppr_nodes(graph,int(seed),args.subgraph_nodes)
+            if len(ids)<2:
+                raise ValueError('PPR returned fewer than two nodes')
+            x, edges, adj=graph.subgraph(ids)
+            pairs, distances=spd_targets(adj,args.spd_pairs,rng)
+            pool.append((x,edges,pairs,distances,ids))
+        pools.append(pool)
+        print('PPR',graph.name,'pool',len(pool),'nodes',[len(item[0]) for item in pool],flush=True)
+    torch.save({g.name:[item[4] for item in pool] for g,pool in zip(graphs,pools)},args.output/'sampled_nodes.pt')
+    for epoch in range(1,args.epochs+1):
+        model.train()
+        metrics=[]
+        schedule=[(i,j) for i,pool in enumerate(pools) for j in range(len(pool))]
+        rng.shuffle(schedule)
+        for i,j in schedule:
+            x,edges,pairs,distances,_=pools[i][j]
+            opt.zero_grad(set_to_none=True)
+            loss, detail=model.objective(x.to(args.device),edges.to(args.device),graphs[i].name,
+                                        pairs.to(args.device),distances.to(args.device))
+            if not torch.isfinite(loss):
+                raise RuntimeError(f'nonfinite loss: {detail}')
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(),1.)
+            opt.step()
+            sched.step()
+            metrics.append(detail)
+        row={'epoch':epoch,**{k:float(np.mean([m[k] for m in metrics])) for k in metrics[0]}}
+        history.append(row)
+        print('TRAIN',row,flush=True)
+        (args.output/'history.json').write_text(json.dumps(history,indent=2))
+        torch.save({'model':model.state_dict(),'optimizer':opt.state_dict(),'scheduler':sched.state_dict(),'model_kwargs':model_kwargs,'epoch':epoch},args.output/'checkpoint.pt')
+    model.eval()
+    with torch.no_grad():
+        learned=model.encode(tx,te).detach().cpu()
+    torch.save({'pretrained':learned,'untrained':initial,'node_ids':torch.arange(len(tx))},args.output/'embeddings.pt')
+    results={}
+    for name, emb in [('CLIP',tx.cpu()),('NoPretrain',initial),('UniGraph2',learned)]:
+        runs=[]
+        for probe_seed in args.probe_seeds:
+            metrics,head=probe(emb.to(args.device),y,target.splits,probe_seed,args.probe_epochs,args.probe_patience)
+            metrics['seed']=probe_seed
+            runs.append(metrics)
+            torch.save(head,args.output/f'probe_{name}_{probe_seed}.pt')
+            print('PROBE',name,metrics,flush=True)
+        accuracies=[r['test_accuracy']*100 for r in runs]
+        results[name]={'mean_test_accuracy_percent':float(np.mean(accuracies)),
+                       'std_test_accuracy_percent':float(np.std(accuracies)), 'runs':runs}
+    report={'status':'completed','scope':'bounded real-data method reproduction; not full paper benchmark',
+            'args':{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()},
+            'model_kwargs':model_kwargs,'history':history,'results':results,'seconds':time.time()-started,
+            'environment':{'python':os.sys.version,'torch':torch.__version__,'cuda':torch.version.cuda,
+                           'gpu':torch.cuda.get_device_name() if args.device=='cuda' else None,
+                           'slurm_job_id':os.environ.get('SLURM_JOB_ID')},
+            'graphs':{g.name:{'nodes':len(g.x),'directed_edges':g.adjacency.nnz,'feature_dim':g.x.shape[1]} for g in graphs+[target]}}
+    report['source_sha256'] = {p.name:hashlib.sha256(p.read_bytes()).hexdigest()
+                               for p in Path(__file__).parent.glob('*.py')}
+    report['data_files'] = {str(p):{'bytes':p.stat().st_size,'mtime_ns':p.stat().st_mtime_ns}
+                            for name in set(args.pretrain+[args.evaluate])
+                            for p in (args.data_root/name).glob('*.pt')}
+    (args.output/'results.json').write_text(json.dumps(report,indent=2))
+    print('COMPLETE',results,flush=True)
+
+if __name__=='__main__':
+    main()
