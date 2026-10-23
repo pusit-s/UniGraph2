@@ -1,5 +1,6 @@
 """Compare MLP, attention experts and shared pre-router attention for one seed."""
 import argparse
+import fcntl
 import hashlib
 import json
 import os
@@ -19,14 +20,8 @@ CONTROLLED = {'--output', '--seed', '--expert', '--router-posttrain', '--resume-
 CORE_SOURCES = ['model.py', 'graph_data.py', 'run.py', 'roma.py', 'link_probe.py']
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--seed', type=int, required=True)
-    args, overrides = parser.parse_known_args()
-    if any(argument.split('=')[0] in CONTROLLED for argument in overrides):
-        parser.error('architecture, seed, stage and output arguments are controlled by this comparison')
-    args.output.mkdir(parents=True, exist_ok=True)
+def _run_cases(args, overrides):
+    """Run/reuse all nine cases while the caller holds the output-directory lock."""
     source_hashes = {name: hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in CORE_SOURCES}
     runs = []
     for architecture, architecture_args in ARCHITECTURES.items():
@@ -63,6 +58,25 @@ def main():
     (args.output/'manifest.json').write_text(json.dumps(
         {'status': 'completed', 'encoder_seed': args.seed, 'architectures': list(ARCHITECTURES),
          'slurm_job_id': os.environ.get('SLURM_JOB_ID'), 'runs': runs, 'overrides': overrides}, indent=2))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--seed', type=int, required=True)
+    args, overrides = parser.parse_known_args()
+    if any(argument.split('=')[0] in CONTROLLED for argument in overrides):
+        parser.error('architecture, seed, stage and output arguments are controlled by this comparison')
+    args.output.mkdir(parents=True, exist_ok=True)
+    lock_path = args.output/'.comparison.lock'
+    with lock_path.open('a') as lock:
+        print('WAIT_COMPARISON_LOCK', lock_path, flush=True)
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        print('ACQUIRED_COMPARISON_LOCK', lock_path, flush=True)
+        try:
+            _run_cases(args, overrides)
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 if __name__ == '__main__':
