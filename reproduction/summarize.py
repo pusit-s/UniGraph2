@@ -26,6 +26,11 @@ def main():
               'Differences from the paper: reduced pre-training corpus, a bounded subgraph pool, induced-subgraph SPD targets, one encoder seed, three probe seeds, a restricted downstream graph, and a PyTorch GAT reconstruction. See the reproduction README for all assumptions.','']
     delta=r['results']['UniGraph2']['mean_test_accuracy_percent']-r['results']['NoPretrain']['mean_test_accuracy_percent']
     lines += [f'The trained encoder changes test accuracy by {delta:+.2f} percentage points relative to the untrained encoder in this limited run. This result alone does not establish the paper\'s generalization claims.','']
+    if cfg.get('router_posttrain', 'none') != 'none':
+        lines += [f"Router post-training: {cfg['router_posttrain']}, {cfg['router_epochs']} additional pool passes at lr {cfg['router_lr']}. Only gate parameters change; all experts, GNN layers, mask token and decoders are frozen and dropout is disabled.", '',
+                  'RoMA uses frozen unmasked routing targets from low-reconstruction-error pre-training nodes and Gaussian CLIP kNN. This label-free success surrogate differs from the paper\'s correct-answer criterion. No evaluation data enters the adaptation.', '']
+        if r.get('pretrain_lineage'):
+            lines += [f"Baseline checkpoint: {r['pretrain_lineage']['run']}; SHA256 `{r['pretrain_lineage']['checkpoint_sha256']}`.", '']
     diagnostic_path=args.run/'diagnostics.json'
     if diagnostic_path.exists():
         diag=json.loads(diagnostic_path.read_text())['embedding_diagnostics']

@@ -105,3 +105,22 @@ sbatch report.sbatch results/run-83924
 ```
 
 Full benchmark replication still requires the complete Products, Papers100M and Goodreads pre-training data, full downstream graphs, independent encoder repetitions and implementations of link-prediction, few-shot and generative evaluations. The present code does not implement those additional tasks.
+
+## RoMA routing and attention comparison
+
+[RoMA (Routing Manifold Alignment)](https://arxiv.org/html/2511.07419v2), [reference repository](https://github.com/tianyi-lab/RoMA), is router-only post-training rather than a new expert architecture. `roma.py` implements Eqs. 5–10 using live differentiable routing probabilities, frozen successful-neighbor routes, and normalized Gaussian kNN weights. Experts, GNN, reconstruction/SPD heads, input statistics and mask token remain frozen; dropout is disabled during this stage.
+
+This is an explicit **label-free graph adaptation**: frozen unit-normalized raw CLIP features replace task-text embeddings; the best half of distinct pre-training nodes by mean masked reconstruction error, selected separately per domain, replace correctly answered training examples. Errors are scored on one fixed masked pass over the existing subgraph pool, averaging repeated observations of each node. Neighbors exclude the same domain/node identity. Reference and online routes are unmasked, since all masked nodes receive one identical mask token. No target-domain graph, features, labels, or statistics enter the bank or router post-training. This surrogate differs from RoMA's supervised correct-answer criterion.
+
+Defaults for the optional stage: 3 additional pool passes, router lr `7e-5`, λ `0.8`, k `5`, σ `0.4`, success fraction `0.5`; lr uses the existing warmup/cosine policy and λ warms up over the same initial fraction. Baseline defaults are unchanged. Sparse top-1 router tuning is rejected because its normalized routing weights have zero derivative; dense and top-k ≥2 are supported.
+
+```bash
+sbatch run.sbatch --router-posttrain roma
+sbatch run.sbatch --expert attention --router-posttrain roma
+sbatch roma_compare.sbatch                 # three encoder seeds; six conditions per seed
+sbatch roma_report.sbatch results/roma-JOBID # validate paired runs and generate figures
+```
+
+The six conditions are MLP and attention experts, each with no post-training, task-loss-only router tuning, and RoMA. Task-only and RoMA branch from the exact same saved baseline checkpoint and use identical post-training masks/order. Checkpoint lineage, input metadata, source hashes, complete probes and matched settings are checked. CUDA scatter operations may differ by a few ulps between processes; checkpoint resumption checks numerical agreement and reuses the saved untrained embeddings for exactly paired reference probes.
+
+`plot_roma.py` writes PNG/PDF/SVG Figure-3-style UMAP plots, a performance plot, per-probe CSV, inspectable coordinates/routes and JSON provenance, plus `COMPARISON.md`. Every panel uses the same randomly sampled nodes and four unsupervised CLIP groups. The fourth panel shows the earlier attention method instead of the paper's label-optimized oracle. Independent UMAP panels cannot establish alignment by their appearance: original-space CLIP/routing kNN overlap, silhouette, routing spread and effective rank are also reported. The first declared encoder seed is always plotted; no seed or view is chosen by test accuracy or apparent cluster separation.

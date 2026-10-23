@@ -1,11 +1,17 @@
 """Focused correctness checks for graph attention, masking, SPD and multimodal fusion."""
 import itertools
+import copy
+import hashlib
+import json
+from pathlib import Path
+import tempfile
 import unittest
 import numpy as np
 import torch
 from scipy import sparse
 from graph_data import fuse_features, spd_targets, Graph, ppr_nodes
 from model import GATLayer, UniGraph2
+from roma import build_bank, freeze_for_router, neighbor_targets, manifold_loss
 
 class CoreTests(unittest.TestCase):
     def test_available_modalities(self):
@@ -69,6 +75,10 @@ class CoreTests(unittest.TestCase):
             self.assertTrue(all(p.grad is None for p in model.decoders['b'].parameters()))
             model.eval()
             with torch.no_grad():
+                routes=model.routing_weights(x)
+                torch.testing.assert_close(routes.sum(-1),torch.ones(len(x),device=device))
+                self.assertTrue((routes>=0).all())
+                self.assertTrue(((routes>0).sum(-1)==(top_k or 2)).all())
                 torch.testing.assert_close(model.encode(x,edges),model.encode(x,edges))
                 before=model.encode(x,edges)
                 model.mask_token.add_(100)
@@ -76,6 +86,109 @@ class CoreTests(unittest.TestCase):
                 perm=torch.tensor([2,0,1],device=device)
                 inverse=torch.argsort(perm)
                 torch.testing.assert_close(before[perm],model.encode(x[perm],inverse[edges]))
+                torch.testing.assert_close(routes[perm],model.routing_weights(x[perm]))
+
+    def test_manifold_formula_and_self_exclusion(self):
+        bank={'features':torch.tensor([[1.,0.],[0.,1.],[-1.,0.]]),
+              'routes':torch.tensor([[.9,.1],[.2,.8],[.6,.4]],requires_grad=True),
+              'identities':torch.tensor([[0,1],[0,2],[1,1]])}
+        x=torch.tensor([[1.,0.]])
+        neighbors,weights=neighbor_targets(x,torch.tensor([[0,1]]),bank,k=3,sigma=1.)
+        # Squared distances are 2 and 4, hence Gaussian logits -1 and -2.
+        torch.testing.assert_close(weights[0,:2],torch.tensor([-1.,-2.]).softmax(-1))
+        self.assertEqual(weights[0,2].item(),0.)
+        routes=torch.tensor([[.4,.6]],requires_grad=True)
+        loss=manifold_loss(routes,neighbors,weights)
+        expected=weights[0,0]*.08+weights[0,1]*.08
+        torch.testing.assert_close(loss,expected)
+        loss.backward()
+        self.assertGreater(routes.grad.abs().sum().item(),0)
+        self.assertIsNone(bank['routes'].grad)
+        # Domain ID participates in identity: domain 1/node 1 is a valid neighbor.
+        self.assertTrue((neighbors[0,1]==bank['routes'][2]).all())
+
+    def test_router_only_alignment_gradients(self):
+        devices=['cpu']+(['cuda'] if torch.cuda.is_available() else [])
+        for device,expert,top_k in itertools.product(devices,['mlp','attention'],[0,2]):
+            torch.manual_seed(5)
+            model=UniGraph2(6,['a','b'],hidden=8,experts=3,layers=1,heads=2,dropout=.4,expert=expert,top_k=top_k).to(device)
+            model.feature_mean.fill_(.2)
+            model.feature_std.fill_(.5)
+            x=torch.randn(6,6,device=device)
+            edges=torch.arange(6,device=device).repeat(2,1)
+            pairs=torch.tensor([[0,1],[1,0]],device=device)
+            before={key:value.clone() for key,value in model.state_dict().items()}
+            parameters=freeze_for_router(model)
+            self.assertFalse(model.training)
+            # A nonconstant, frozen teacher makes a detached-online-router bug fail.
+            teacher=torch.softmax(torch.randn(6,2,3,device=device),-1).requires_grad_()
+            weights=torch.full((6,2),.5,device=device)
+            loss=manifold_loss(model.routing_weights(x),teacher,weights)
+            loss.backward()
+            self.assertGreater(sum(p.grad.abs().sum().item() for p in parameters),0)
+            self.assertIsNone(teacher.grad)
+            self.assertTrue(all(p.grad is None for name,p in model.named_parameters() if not name.startswith('moe.gate.')))
+            optimizer=torch.optim.SGD(parameters,lr=.1)
+            optimizer.step()
+            changed=[key for key,value in model.state_dict().items() if not torch.equal(value,before[key])]
+            self.assertTrue(changed)
+            self.assertTrue(all(key.startswith('moe.gate.') for key in changed))
+            optimizer.zero_grad(set_to_none=True)
+            task,_=model.objective(x,edges,'a',pairs,torch.ones(2,device=device))
+            task.backward()
+            self.assertGreater(sum(p.grad.abs().sum().item() for p in parameters),0)
+
+    def test_bank_is_label_free_deduplicated_and_rng_isolated(self):
+        torch.manual_seed(0)
+        graph=Graph('a',torch.randn(6,6),sparse.eye(6,format='csr'))
+        x,edges,adj=graph.subgraph(np.arange(6))
+        pairs,distances=spd_targets(adj,0,np.random.default_rng(0))
+        item=(x,edges,pairs,distances,np.arange(6))
+        model=UniGraph2(6,['a'],hidden=8,experts=2,layers=1,heads=2,dropout=0).eval()
+        state=torch.random.get_rng_state().clone()
+        bank=build_bank(model,[graph],[[item,item]],fraction=.5,seed=7)
+        self.assertTrue(torch.equal(state,torch.random.get_rng_state()))
+        self.assertEqual(len(bank['identities'].unique(dim=0)),len(bank['identities']))
+        self.assertFalse(bank['routes'].requires_grad)
+        # No labels/splits exist on this graph, and the bank still builds.
+        self.assertIsNone(graph.y)
+        torch.testing.assert_close(bank['routes'],model.routing_weights(graph.x[bank['identities'][:,1]]))
+
+    def test_comparison_requires_complete_paired_runs(self):
+        from plot_roma import CONDITIONS, review_runs, summarize
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            for seed in [0,1,2]:
+                for expert,method,_ in CONDITIONS:
+                    path=root/f'seed-{seed}'/f'{expert}-{method}'
+                    path.mkdir(parents=True)
+                    (path/'checkpoint.pt').write_bytes(b'baseline checkpoint')
+                    result={'mean_test_accuracy_percent':float(10+seed*10),
+                            'runs':[{'seed':0,'test_accuracy':(10+seed*10)/100}]}
+                    report={'status':'completed',
+                            'args':{'seed':seed,'expert':expert,'router_posttrain':method,'output':str(path),
+                                    'evaluate':'target','pretrain':['source'],'probe_seeds':[0],'lr':1e-4},
+                            'results':{name:copy.deepcopy(result) for name in ['CLIP','NoPretrain','UniGraph2']},
+                            'graphs':{},'data_files':{},'source_sha256':{name:'fixed' for name in ['model.py','graph_data.py','run.py','roma.py']},
+                            'environment':{'slurm_job_id':f'100_{seed}'},
+                            'pretrain_lineage':{'run':str(root/f'seed-{seed}'/f'{expert}-none'),
+                                                'checkpoint_sha256':hashlib.sha256(b'baseline checkpoint').hexdigest()}}
+                    (path/'results.json').write_text(json.dumps(report))
+            records=review_runs(root,[0,1,2])
+            row=summarize(records,[0,1,2])[0]
+            self.assertEqual(row['mean_test_accuracy_percent'],20.)
+            self.assertAlmostEqual(row['std_across_encoder_seeds'],np.std([10.,20.,30.]))
+            path=root/'seed-1'/'mlp-roma'/'results.json'
+            valid=json.loads(path.read_text())
+            for mutate in [lambda r:r.update(status='running'),
+                           lambda r:r['args'].update(lr=1e-3),
+                           lambda r:r['pretrain_lineage'].update(checkpoint_sha256='wrong')]:
+                broken=copy.deepcopy(valid)
+                mutate(broken)
+                path.write_text(json.dumps(broken))
+                with self.assertRaises(ValueError):
+                    review_runs(root,[0,1,2])
+            path.write_text(json.dumps(valid))
 
 if __name__=='__main__':
     torch.set_num_threads(4)

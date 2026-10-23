@@ -30,6 +30,12 @@ class MoE(nn.Module):
             nn.Sequential(nn.Linear(input_dim, hidden), nn.GELU(), nn.Linear(hidden, hidden))
             for _ in range(experts)])
 
+    def routing_weights(self, x):
+        """Actual post-top-k probabilities, with zeros for inactive experts."""
+        scores, indices = self.gate(x).topk(self.top_k, dim=-1)
+        weights = scores.softmax(-1)
+        return scores.new_zeros(len(x), len(self.experts)).scatter(1, indices, weights)
+
     def forward(self, x):
         scores, indices = self.gate(x).topk(self.top_k, dim=-1)
         weights = scores.softmax(-1)
@@ -100,6 +106,15 @@ class UniGraph2(nn.Module):
         for layer in self.gnn:
             h = layer(h, edges)
         return h
+
+    def routing_weights(self, x):
+        """Unmasked routing in the same frozen input coordinate system as encode."""
+        return self.moe.routing_weights((x - self.feature_mean) / self.feature_std)
+
+    def reconstruction_losses(self, x, edges, domain, masked):
+        h = self.encode(x, edges, masked)
+        prediction = self.decoders[domain](h[masked])
+        return (1 - F.cosine_similarity(prediction, x[masked], dim=-1)).clamp_min(0).pow(self.gamma)
 
     def objective(self, x, edges, domain, pairs, distances):
         if len(x) < 2:

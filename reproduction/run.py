@@ -13,6 +13,7 @@ from torch import nn
 from torch.nn import functional as F
 from graph_data import read_graph, ppr_nodes, spd_targets
 from model import UniGraph2
+from roma import posttrain
 
 
 def seed_all(seed):
@@ -73,6 +74,15 @@ def main():
     parser.add_argument('--heads', type=int, default=4)
     parser.add_argument('--top-k', type=int, default=0, help='0 uses dense routing from paper equations; 2 matches upstream sparse routing')
     parser.add_argument('--expert', choices=['mlp','attention'], default='mlp', help='MoE expert type: 2-layer MLP (paper) or single transformer attention head over the nodes of each graph')
+    parser.add_argument('--router-posttrain', choices=['none', 'task', 'roma'], default='none',
+                        help='optional router-only post-training; task is the no-alignment control')
+    parser.add_argument('--resume-pretrain', type=Path, help='completed baseline run to branch from without repeating pre-training')
+    parser.add_argument('--router-epochs', type=int, default=3)
+    parser.add_argument('--router-lr', type=float, default=7e-5)
+    parser.add_argument('--roma-lambda', type=float, default=.8)
+    parser.add_argument('--roma-k', type=int, default=5)
+    parser.add_argument('--roma-sigma', type=float, default=.4)
+    parser.add_argument('--roma-success-fraction', type=float, default=.5)
     parser.add_argument('--dropout', type=float, default=.4)
     parser.add_argument('--mask-rate', type=float, default=.8)
     parser.add_argument('--gamma', type=float, default=2.)
@@ -94,7 +104,18 @@ def main():
     args = parser.parse_args()
     if min(args.epochs,args.steps,args.subgraph_nodes,args.probe_epochs,args.probe_patience)<1 or args.eval_limit<0 or args.spd_pairs<0 or not 0<=args.warmup<1:
         parser.error('invalid run limits')
+    if args.evaluate in args.pretrain:
+        parser.error('evaluation domain must be excluded from pre-training')
+    if args.router_epochs < 1 or args.router_lr <= 0 or args.roma_lambda < 0 or args.roma_k < 1 or args.roma_sigma <= 0 or not 0 < args.roma_success_fraction <= 1:
+        parser.error('invalid router post-training configuration')
+    if args.router_posttrain != 'none' and (args.top_k == 1 or args.experts < 2):
+        parser.error('router tuning requires at least two active experts for differentiable routing')
+    if args.resume_pretrain and (args.router_posttrain == 'none' or args.resume_pretrain.resolve() == args.output.resolve()):
+        parser.error('resume into a separate output directory with task or roma post-training')
+    if (args.output/'results.json').exists():
+        parser.error('output already contains results; choose a new directory')
     args.output.mkdir(parents=True, exist_ok=True)
+    source_hashes = {p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(__file__).parent.glob('*.py')}
     torch.set_num_threads(4)
     seed_all(args.seed)
     started = time.time()
@@ -141,7 +162,48 @@ def main():
         pools.append(pool)
         print('PPR',graph.name,'pool',len(pool),'nodes',[len(item[0]) for item in pool],flush=True)
     torch.save({g.name:[item[4] for item in pool] for g,pool in zip(graphs,pools)},args.output/'sampled_nodes.pt')
-    for epoch in range(1,args.epochs+1):
+    lineage = None
+    if args.resume_pretrain:
+        baseline = json.loads((args.resume_pretrain/'results.json').read_text())
+        if baseline.get('status') != 'completed' or baseline['args'].get('router_posttrain', 'none') != 'none':
+            raise ValueError('resume requires a completed baseline without router post-training')
+        base_keys = ['pretrain', 'evaluate', 'hidden', 'layers', 'experts', 'heads', 'top_k', 'expert',
+                     'dropout', 'mask_rate', 'gamma', 'lambda_spd', 'epochs', 'steps', 'subgraph_nodes',
+                     'spd_pairs', 'lr', 'warmup', 'standardize', 'weight_decay', 'eval_limit', 'seed',
+                     'probe_epochs', 'probe_patience', 'probe_seeds']
+        for key in base_keys:
+            if baseline['args'].get(key) != getattr(args, key):
+                raise ValueError(f'baseline configuration mismatch: {key}')
+        if Path(baseline['args']['data_root']).resolve() != args.data_root.resolve():
+            raise ValueError('baseline data root mismatch')
+        for path, metadata in baseline['data_files'].items():
+            if Path(path).stat().st_size != metadata['bytes'] or Path(path).stat().st_mtime_ns != metadata['mtime_ns']:
+                raise ValueError(f'baseline data changed: {path}')
+        # Model and pool code must match. Analysis/plotting files may be added later.
+        for name in ['model.py', 'graph_data.py']:
+            if baseline['source_sha256'][name] != source_hashes[name]:
+                raise ValueError(f'baseline source mismatch: {name}')
+        saved_nodes = torch.load(args.resume_pretrain/'sampled_nodes.pt', weights_only=False)
+        for graph, pool in zip(graphs, pools):
+            if len(saved_nodes[graph.name]) != len(pool) or any(not np.array_equal(ids, item[4]) for ids, item in zip(saved_nodes[graph.name], pool)):
+                raise ValueError('baseline sampled node pool mismatch')
+        checkpoint_path = args.resume_pretrain/'checkpoint.pt'
+        checkpoint = torch.load(checkpoint_path, map_location=args.device, weights_only=False)
+        if checkpoint['epoch'] != args.epochs or checkpoint['model_kwargs'] != model_kwargs:
+            raise ValueError('baseline checkpoint configuration mismatch')
+        model.load_state_dict(checkpoint['model'])
+        history = baseline['history']
+        baseline_initial = torch.load(args.resume_pretrain/'embeddings.pt', weights_only=False)['untrained']
+        # CUDA scatter reductions can differ by a few ulps across processes.
+        # Reuse the saved baseline representation for exactly paired probes.
+        torch.testing.assert_close(initial, baseline_initial, rtol=1e-4, atol=5e-6)
+        initial = baseline_initial
+        lineage = {'run': str(args.resume_pretrain.resolve()),
+                   'checkpoint_sha256': hashlib.sha256(checkpoint_path.read_bytes()).hexdigest(),
+                   'source_sha256': baseline['source_sha256'],
+                   'slurm_job_id': baseline['environment']['slurm_job_id']}
+        (args.output/'history.json').write_text(json.dumps(history, indent=2))
+    for epoch in ([] if args.resume_pretrain else range(1,args.epochs+1)):
         model.train()
         metrics=[]
         schedule=[(i,j) for i,pool in enumerate(pools) for j in range(len(pool))]
@@ -163,10 +225,22 @@ def main():
         print('TRAIN',row,flush=True)
         (args.output/'history.json').write_text(json.dumps(history,indent=2))
         torch.save({'model':model.state_dict(),'optimizer':opt.state_dict(),'scheduler':sched.state_dict(),'model_kwargs':model_kwargs,'epoch':epoch},args.output/'checkpoint.pt')
+    router_history = []
+    if args.router_posttrain != 'none':
+        before = {key: value.detach().cpu().clone() for key, value in model.state_dict().items()}
+        router_history = posttrain(model, graphs, pools, args, args.output)
+        changed = [key for key, value in model.state_dict().items() if not torch.equal(value.cpu(), before[key])]
+        if not changed or any(not key.startswith('moe.gate.') for key in changed):
+            raise RuntimeError(f'router-only update invariant failed: {changed}')
+        (args.output/'router_history.json').write_text(json.dumps(router_history, indent=2))
+        torch.save({'model': model.state_dict(), 'model_kwargs': model_kwargs,
+                    'router_history': router_history, 'changed_parameters': changed}, args.output/'router_checkpoint.pt')
     model.eval()
     with torch.no_grad():
         learned=model.encode(tx,te).detach().cpu()
-    torch.save({'pretrained':learned,'untrained':initial,'node_ids':torch.arange(len(tx))},args.output/'embeddings.pt')
+        routing=model.routing_weights(tx).detach().cpu()
+    torch.save({'pretrained':learned,'untrained':initial,'routing':routing,'clip':tx.cpu(),
+                'node_ids':torch.arange(len(tx))},args.output/'embeddings.pt')
     results={}
     for name, emb in [('CLIP',tx.cpu()),('NoPretrain',initial),('UniGraph2',learned)]:
         runs=[]
@@ -181,13 +255,15 @@ def main():
                        'std_test_accuracy_percent':float(np.std(accuracies)), 'runs':runs}
     report={'status':'completed','scope':'bounded real-data method reproduction; not full paper benchmark',
             'args':{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()},
-            'model_kwargs':model_kwargs,'history':history,'results':results,'seconds':time.time()-started,
+            'model_kwargs':model_kwargs,'history':history,'router_history':router_history,
+            'pretrain_lineage':lineage,'results':results,'seconds':time.time()-started,
+            'parameter_counts':{'total':sum(p.numel() for p in model.parameters()),
+                                'router':sum(p.numel() for p in model.moe.gate.parameters())},
             'environment':{'python':os.sys.version,'torch':torch.__version__,'cuda':torch.version.cuda,
                            'gpu':torch.cuda.get_device_name() if args.device=='cuda' else None,
                            'slurm_job_id':os.environ.get('SLURM_JOB_ID')},
             'graphs':{g.name:{'nodes':len(g.x),'directed_edges':g.adjacency.nnz,'feature_dim':g.x.shape[1]} for g in graphs+[target]}}
-    report['source_sha256'] = {p.name:hashlib.sha256(p.read_bytes()).hexdigest()
-                               for p in Path(__file__).parent.glob('*.py')}
+    report['source_sha256'] = source_hashes
     report['data_files'] = {str(p):{'bytes':p.stat().st_size,'mtime_ns':p.stat().st_mtime_ns}
                             for name in set(args.pretrain+[args.evaluate])
                             for p in (args.data_root/name).glob('*.pt')}
