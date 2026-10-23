@@ -37,28 +37,35 @@ def build_bank(model, graphs, pools, fraction=.5, seed=0):
     was_training = model.training
     model.eval()
     features, routes, identities, errors = [], [], [], []
+    contextual = getattr(model, 'shared_attention_enabled', False)
     # Do not let bank construction change post-training masks or dropout RNG.
     devices = [device.index if device.index is not None else torch.cuda.current_device()] if device.type == 'cuda' else []
     with torch.random.fork_rng(devices=devices):
         torch.manual_seed(seed)
         for domain_index, (graph, pool) in enumerate(zip(graphs, pools)):
-            sums, counts = {}, {}
+            sums, counts, route_sums = {}, {}, {}
             for x, edges, _, _, ids in pool:
                 x, edges = x.to(device), edges.to(device)
                 count = max(1, min(len(x)-1, int(len(x)*model.mask_rate)))
                 masked = torch.randperm(len(x), device=device)[:count]
                 losses = model.reconstruction_losses(x, edges, graph.name, masked)
-                for node, loss in zip(np.asarray(ids)[masked.cpu().numpy()], losses.cpu().tolist()):
+                # Shared attention makes the gate depend on the complete source
+                # subgraph. Freeze routes in that original context, not in an
+                # artificial batch containing only the eventual anchor nodes.
+                pool_routes = model.routing_weights(x)[masked] if contextual else None
+                for index, (node, loss) in enumerate(zip(np.asarray(ids)[masked.cpu().numpy()], losses.cpu().tolist())):
                     node = int(node)
                     sums[node] = sums.get(node, 0.) + loss
                     counts[node] = counts.get(node, 0) + 1
+                    if contextual:
+                        route_sums[node] = route_sums.get(node, torch.zeros_like(pool_routes[index])) + pool_routes[index]
             ranked = sorted(sums, key=lambda node: (sums[node]/counts[node], node))
             selected = ranked[:max(2, math.ceil(len(ranked)*fraction))]
             if len(selected) < 2:
                 raise ValueError('RoMA needs at least two distinct scored nodes per domain')
             x = graph.x[selected].to(device)
             features.append(F.normalize(x, dim=-1))
-            routes.append(model.routing_weights(x))
+            routes.append(torch.stack([route_sums[node]/counts[node] for node in selected]) if contextual else model.routing_weights(x))
             identities.extend((domain_index, node) for node in selected)
             errors.extend(sums[node]/counts[node] for node in selected)
     model.train(was_training)
@@ -66,6 +73,8 @@ def build_bank(model, graphs, pools, fraction=.5, seed=0):
             'identities': torch.tensor(identities, device=device),
             'errors': torch.tensor(errors, device=device),
             'success_definition': 'lowest mean masked reconstruction error fraction per pre-training domain',
+            'routing_context': ('mean of complete original unmasked PPR-pool routes over scored occurrences'
+                                if contextual else 'pointwise unmasked routing'),
             'fraction': fraction}
 
 

@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from scipy import sparse
 from graph_data import fuse_features, spd_targets, Graph, ppr_nodes
-from model import GATLayer, UniGraph2
+from model import GATLayer, SharedSelfAttention, UniGraph2
 from roma import build_bank, freeze_for_router, neighbor_targets, manifold_loss
 from link_probe import prepare_link_splits, ranking_metrics, lp_probe
 
@@ -47,31 +47,47 @@ class CoreTests(unittest.TestCase):
         torch.testing.assert_close(layer(x,edges),ref)
 
     def test_input_standardization(self):
-        torch.manual_seed(0)
-        model=UniGraph2(6,['a'],hidden=8,experts=2,layers=1,heads=2,dropout=0).eval()
-        x=torch.randn(3,6)*.05+.3
-        edges=torch.tensor([[0,1,2],[0,1,2]])
-        expected=model.encode((x-x.mean(0))/x.std(0),edges)
-        model.feature_mean.copy_(x.mean(0))
-        model.feature_std.copy_(x.std(0))
-        torch.testing.assert_close(model.encode(x,edges),expected)
-        before=x.clone()
-        model.encode(x,edges,torch.tensor([0]))
-        torch.testing.assert_close(x,before)
+        for shared in [False,True]:
+            torch.manual_seed(0)
+            model=UniGraph2(6,['a'],hidden=8,experts=2,layers=1,heads=2,dropout=0,
+                            shared_attention=shared,attention_heads=2).eval()
+            x=torch.randn(3,6)*.05+.3
+            edges=torch.tensor([[0,1,2],[0,1,2]])
+            expected=model.encode((x-x.mean(0))/x.std(0),edges)
+            model.feature_mean.copy_(x.mean(0))
+            model.feature_std.copy_(x.std(0))
+            torch.testing.assert_close(model.encode(x,edges),expected)
+            before=x.clone()
+            model.encode(x,edges,torch.tensor([0]))
+            torch.testing.assert_close(x,before)
 
     def test_inference_and_gradients(self):
         devices=['cpu']+(['cuda'] if torch.cuda.is_available() else [])
-        for device,expert,top_k in itertools.product(devices,['mlp','attention'],[0,1]):
+        architectures=[('mlp',False),('attention',False),('mlp',True)]
+        for device,(expert,shared),top_k in itertools.product(devices,architectures,[0,1,2]):
             torch.manual_seed(0)
-            model=UniGraph2(6,['a','b'],hidden=8,experts=2,layers=2,heads=2,dropout=0,top_k=top_k,expert=expert).to(device)
+            model=UniGraph2(6,['a','b'],hidden=8,experts=3,layers=2,heads=2,dropout=0,top_k=top_k,expert=expert,
+                            shared_attention=shared,attention_heads=2).to(device)
             x=torch.randn(3,6,device=device)
             edges=torch.tensor([[0,1,2,0,1],[0,1,2,1,0]],device=device)
-            pairs=torch.tensor([[0,1],[1,0]],device=device)
-            distances=torch.ones(2,device=device)
+            pairs=torch.tensor([[0,1,2],[1,2,0]],device=device)
+            distances=torch.ones(3,device=device)
+            original=x.clone()
             loss,_=model.objective(x,edges,'a',pairs,distances)
             loss.backward()
+            torch.testing.assert_close(x,original)
             for module in [model.moe,model.gnn,model.decoders['a'],model.spd]:
                 self.assertTrue(any(p.grad is not None and p.grad.abs().sum()>0 for p in module.parameters()))
+            if top_k!=1:
+                self.assertTrue(any(p.grad is not None and p.grad.abs().sum()>0 for p in model.moe.gate.parameters()))
+            else:
+                self.assertTrue(all(p.grad is None or p.grad.count_nonzero()==0 for p in model.moe.gate.parameters()))
+            if shared:
+                self.assertFalse(model.moe.attention)
+                for module in [model.shared_attention.q,model.shared_attention.k,model.shared_attention.v,
+                               model.shared_attention.out,model.shared_attention.norm]:
+                    self.assertTrue(any(p.grad is not None and p.grad.abs().sum()>0 for p in module.parameters()))
+                    self.assertTrue(all(p.grad is None or torch.isfinite(p.grad).all() for p in module.parameters()))
             self.assertTrue(model.mask_token.grad.abs().sum()>0)
             self.assertTrue(all(p.grad is None for p in model.decoders['b'].parameters()))
             model.eval()
@@ -79,7 +95,7 @@ class CoreTests(unittest.TestCase):
                 routes=model.routing_weights(x)
                 torch.testing.assert_close(routes.sum(-1),torch.ones(len(x),device=device))
                 self.assertTrue((routes>=0).all())
-                self.assertTrue(((routes>0).sum(-1)==(top_k or 2)).all())
+                self.assertTrue(((routes>0).sum(-1)==(top_k or 3)).all())
                 torch.testing.assert_close(model.encode(x,edges),model.encode(x,edges))
                 before=model.encode(x,edges)
                 model.mask_token.add_(100)
@@ -88,6 +104,59 @@ class CoreTests(unittest.TestCase):
                 inverse=torch.argsort(perm)
                 torch.testing.assert_close(before[perm],model.encode(x[perm],inverse[edges]))
                 torch.testing.assert_close(routes[perm],model.routing_weights(x[perm]))
+
+    def test_shared_attention_matches_dense_reference(self):
+        for device in ['cpu']+(['cuda'] if torch.cuda.is_available() else []):
+            torch.manual_seed(17)
+            layer=SharedSelfAttention(8,heads=2).to(device).eval()
+            x=torch.randn(5,8,device=device)
+            heads=[]
+            for index in range(2):
+                start=index*4
+                q=layer.q(x)[:,start:start+4]
+                k=layer.k(x)[:,start:start+4]
+                v=layer.v(x)[:,start:start+4]
+                heads.append(((q@k.T)/(4**.5)).softmax(-1)@v)
+            expected=layer.norm(x+layer.out(torch.cat(heads,-1)))
+            torch.testing.assert_close(layer(x),expected)
+
+    def test_shared_routing_uses_current_graph_context(self):
+        torch.manual_seed(8)
+        model=UniGraph2(6,['a'],hidden=8,experts=3,layers=1,heads=2,dropout=0,
+                        shared_attention=True,attention_heads=2).eval()
+        x=torch.randn(4,6)
+        other=torch.randn(7,6)
+        edges=torch.arange(4).repeat(2,1)
+        other_edges=torch.arange(7).repeat(2,1)
+        with torch.no_grad():
+            initial=model.encode(x,edges)
+            routes=model.routing_weights(x)
+            model.encode(other,other_edges)
+            model.routing_weights(other)
+            torch.testing.assert_close(initial,model.encode(x,edges),rtol=0,atol=0)
+            torch.testing.assert_close(routes,model.routing_weights(x),rtol=0,atol=0)
+            # Changing another node must affect this node's shared-context route.
+            changed=x.clone()
+            changed[1:]+=torch.tensor([4.,-3.,2.,-1.,5.,-2.])
+            self.assertFalse(torch.allclose(routes[0],model.routing_weights(changed)[0]))
+            normalized=(x-model.feature_mean)/model.feature_std
+            torch.testing.assert_close(routes,model.moe.routing_weights(model.shared_attention(normalized)))
+
+    def test_shared_attention_configuration_and_default_compatibility(self):
+        for heads in [0,-1,4]:
+            with self.assertRaises(ValueError):
+                SharedSelfAttention(6,heads)
+        with self.assertRaises(ValueError):
+            UniGraph2(6,['a'],hidden=8,layers=1,heads=2,expert='attention',shared_attention=True,attention_heads=2)
+        torch.manual_seed(13)
+        expected_gate=torch.nn.Sequential(torch.nn.Linear(6,8),torch.nn.GELU(),torch.nn.Linear(8,3))
+        torch.manual_seed(13)
+        default=UniGraph2(6,['a'],hidden=8,experts=3,layers=1,heads=2)
+        self.assertIsInstance(default.shared_attention,torch.nn.Identity)
+        self.assertFalse(default.shared_attention_enabled)
+        self.assertFalse(any(key.startswith('shared_attention.') for key in default.state_dict()))
+        for key,value in expected_gate.state_dict().items():
+            torch.testing.assert_close(value,default.moe.gate.state_dict()[key],rtol=0,atol=0)
 
     def test_manifold_formula_and_self_exclusion(self):
         bank={'features':torch.tensor([[1.,0.],[0.,1.],[-1.,0.]]),
@@ -110,9 +179,11 @@ class CoreTests(unittest.TestCase):
 
     def test_router_only_alignment_gradients(self):
         devices=['cpu']+(['cuda'] if torch.cuda.is_available() else [])
-        for device,expert,top_k in itertools.product(devices,['mlp','attention'],[0,2]):
+        architectures=[('mlp',False),('attention',False),('mlp',True)]
+        for device,(expert,shared),top_k in itertools.product(devices,architectures,[0,2]):
             torch.manual_seed(5)
-            model=UniGraph2(6,['a','b'],hidden=8,experts=3,layers=1,heads=2,dropout=.4,expert=expert,top_k=top_k).to(device)
+            model=UniGraph2(6,['a','b'],hidden=8,experts=3,layers=1,heads=2,dropout=.4,expert=expert,top_k=top_k,
+                            shared_attention=shared,attention_heads=2).to(device)
             model.feature_mean.fill_(.2)
             model.feature_std.fill_(.5)
             x=torch.randn(6,6,device=device)
@@ -154,6 +225,35 @@ class CoreTests(unittest.TestCase):
         # No labels/splits exist on this graph, and the bank still builds.
         self.assertIsNone(graph.y)
         torch.testing.assert_close(bank['routes'],model.routing_weights(graph.x[bank['identities'][:,1]]))
+
+    def test_shared_bank_uses_scored_original_pool_context(self):
+        torch.manual_seed(9)
+        graph=Graph('a',torch.randn(6,6),sparse.eye(6,format='csr'))
+        ids_list=[np.array([0,1,2,3]),np.array([2,3,4,5])]
+        pool=[]
+        for ids in ids_list:
+            x,edges,adj=graph.subgraph(ids)
+            pairs,distances=spd_targets(adj,0,np.random.default_rng(0))
+            pool.append((x,edges,pairs,distances,ids))
+        model=UniGraph2(6,['a'],hidden=8,experts=3,layers=1,heads=2,dropout=0,
+                        shared_attention=True,attention_heads=2).eval()
+        expected={}
+        with torch.no_grad(),torch.random.fork_rng(devices=[]):
+            torch.manual_seed(7)
+            for x,edges,pairs,distances,ids in pool:
+                count=max(1,min(len(x)-1,int(len(x)*model.mask_rate)))
+                masked=torch.randperm(len(x))[:count]
+                routes=model.routing_weights(x)
+                for row in masked.tolist():
+                    expected.setdefault(int(ids[row]),[]).append(routes[row])
+        state=torch.random.get_rng_state().clone()
+        bank=build_bank(model,[graph],[pool],fraction=1.,seed=7)
+        self.assertTrue(torch.equal(state,torch.random.get_rng_state()))
+        self.assertFalse(bank['routes'].requires_grad)
+        for row,(_,node) in enumerate(bank['identities'].tolist()):
+            torch.testing.assert_close(bank['routes'][row],torch.stack(expected[node]).mean(0))
+        anchor_only=model.routing_weights(graph.x[bank['identities'][:,1]])
+        self.assertFalse(torch.allclose(bank['routes'],anchor_only,rtol=1e-5,atol=1e-7))
 
     def test_comparison_requires_complete_paired_runs(self):
         from plot_roma import CONDITIONS, review_runs, summarize

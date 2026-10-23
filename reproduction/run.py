@@ -75,6 +75,10 @@ def main():
     parser.add_argument('--heads', type=int, default=4)
     parser.add_argument('--top-k', type=int, default=0, help='0 uses dense routing from paper equations; 2 matches upstream sparse routing')
     parser.add_argument('--expert', choices=['mlp','attention'], default='mlp', help='MoE expert type: 2-layer MLP (paper) or single transformer attention head over the nodes of each graph')
+    parser.add_argument('--shared-attention', action='store_true',
+                        help='optional shared multihead self-attention before routing into MLP experts')
+    parser.add_argument('--attention-heads', type=int, default=4,
+                        help='heads in the optional shared attention block; independent of GAT --heads')
     parser.add_argument('--router-posttrain', choices=['none', 'task', 'roma'], default='none',
                         help='optional router-only post-training; task is the no-alignment control')
     parser.add_argument('--resume-pretrain', type=Path, help='completed baseline run to branch from without repeating pre-training')
@@ -112,6 +116,8 @@ def main():
         parser.error('invalid run limits')
     if min(args.lp_negatives,args.lp_train_edges,args.lp_eval_edges,args.lp_validation_every) < 1:
         parser.error('invalid link-probe limits')
+    if args.attention_heads < 1 or (args.shared_attention and args.expert != 'mlp'):
+        parser.error('shared attention requires MLP experts and a positive attention head count')
     if args.evaluate in args.pretrain:
         parser.error('evaluation domain must be excluded from pre-training')
     if args.router_epochs < 1 or args.router_lr <= 0 or args.roma_lambda < 0 or args.roma_k < 1 or args.roma_sigma <= 0 or not 0 < args.roma_success_fraction <= 1:
@@ -143,6 +149,7 @@ def main():
         raise ValueError('all domains must use the same CLIP feature space')
     model_kwargs = dict(input_dim=graphs[0].x.shape[1], domains=args.pretrain, hidden=args.hidden,
                         layers=args.layers, experts=args.experts, heads=args.heads, top_k=args.top_k, expert=args.expert,
+                        shared_attention=args.shared_attention, attention_heads=args.attention_heads,
                         dropout=args.dropout, mask_rate=args.mask_rate, gamma=args.gamma, lambda_spd=args.lambda_spd)
     model = UniGraph2(**model_kwargs).to(args.device)
     if args.standardize:
@@ -186,6 +193,7 @@ def main():
         if baseline.get('status') != 'completed' or baseline['args'].get('router_posttrain', 'none') != 'none':
             raise ValueError('resume requires a completed baseline without router post-training')
         base_keys = ['pretrain', 'evaluate', 'hidden', 'layers', 'experts', 'heads', 'top_k', 'expert',
+                     'shared_attention', 'attention_heads',
                      'dropout', 'mask_rate', 'gamma', 'lambda_spd', 'epochs', 'steps', 'subgraph_nodes',
                      'spd_pairs', 'lr', 'warmup', 'standardize', 'weight_decay', 'eval_limit', 'seed',
                      'probe_epochs', 'probe_patience', 'probe_seeds', 'lp_negatives', 'lp_train_edges',
@@ -281,7 +289,8 @@ def main():
             'pretrain_lineage':lineage,'results':results,'seconds':time.time()-started,
             'task':task,'primary_metric':primary_metric,'evaluation_protocol':evaluation_protocol,
             'parameter_counts':{'total':sum(p.numel() for p in model.parameters()),
-                                'router':sum(p.numel() for p in model.moe.gate.parameters())},
+                                'router':sum(p.numel() for p in model.moe.gate.parameters()),
+                                'shared_attention':sum(p.numel() for p in model.shared_attention.parameters())},
             'environment':{'python':os.sys.version,'torch':torch.__version__,'cuda':torch.version.cuda,
                            'gpu':torch.cuda.get_device_name() if args.device=='cuda' else None,
                            'slurm_job_id':os.environ.get('SLURM_JOB_ID')},

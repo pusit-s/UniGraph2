@@ -16,6 +16,31 @@ class AttentionHead(nn.Module):
         return scores.softmax(-1) @ self.v(context)
 
 
+class SharedSelfAttention(nn.Module):
+    """Shared multihead node attention before routing, scoped to one graph call.
+
+    Project back to the input feature width so the residual and existing MLP MoE
+    retain their dimensions. No position encodings or attention dropout are used.
+    """
+    def __init__(self, input_dim, heads=4):
+        super().__init__()
+        if input_dim < 1 or heads < 1 or input_dim % heads:
+            raise ValueError('shared attention input_dim must be divisible by positive attention_heads')
+        self.input_dim, self.heads, self.width = input_dim, heads, input_dim // heads
+        self.q, self.k, self.v = (nn.Linear(input_dim, input_dim) for _ in range(3))
+        self.out = nn.Linear(input_dim, input_dim)
+        self.norm = nn.LayerNorm(input_dim)
+
+    def forward(self, x):
+        if x.ndim != 2 or x.shape[1] != self.input_dim:
+            raise ValueError('shared attention expects one graph with shape [nodes, input_dim]')
+        projections = [projection(x).reshape(len(x), self.heads, self.width).transpose(0, 1).unsqueeze(0)
+                       for projection in (self.q, self.k, self.v)]
+        attended = F.scaled_dot_product_attention(*projections, dropout_p=0.)
+        attended = attended.squeeze(0).transpose(0, 1).reshape(len(x), self.input_dim)
+        return self.norm(x + self.out(attended))
+
+
 class MoE(nn.Module):
     def __init__(self, input_dim, hidden, experts=8, top_k=0, expert='mlp'):
         super().__init__()
@@ -82,7 +107,8 @@ class GATLayer(nn.Module):
 
 class UniGraph2(nn.Module):
     def __init__(self, input_dim, domains, hidden=1024, experts=8, layers=4,
-                 heads=4, dropout=.4, mask_rate=.8, gamma=2., lambda_spd=.1, top_k=0, expert='mlp'):
+                 heads=4, dropout=.4, mask_rate=.8, gamma=2., lambda_spd=.1, top_k=0, expert='mlp',
+                 shared_attention=False, attention_heads=4):
         super().__init__()
         if not 0 < mask_rate < 1 or layers < 1 or gamma < 1 or lambda_spd < 0:
             raise ValueError('invalid model configuration')
@@ -92,24 +118,33 @@ class UniGraph2(nn.Module):
         self.register_buffer('feature_mean', torch.zeros(input_dim))
         self.register_buffer('feature_std', torch.ones(input_dim))
         self.mask_token = nn.Parameter(torch.zeros(input_dim))
+        if shared_attention and expert != 'mlp':
+            raise ValueError('shared pre-router attention requires MLP experts; use expert=mlp')
+        self.shared_attention_enabled = bool(shared_attention)
+        # Identity adds no parameters and consumes no RNG, preserving defaults.
+        self.shared_attention = SharedSelfAttention(input_dim, attention_heads) if shared_attention else nn.Identity()
         self.moe = MoE(input_dim, hidden, experts, top_k, expert)
         self.gnn = nn.ModuleList([GATLayer(hidden, heads, dropout) for _ in range(layers)])
         self.decoders = nn.ModuleDict({d: nn.Sequential(nn.Linear(hidden, hidden), nn.GELU(),
                                                        nn.Linear(hidden, input_dim)) for d in domains})
         self.spd = nn.Sequential(nn.Linear(2 * hidden, hidden), nn.GELU(), nn.Linear(hidden, 1))
 
-    def encode(self, x, edges, masked=None):
+    def preprocess(self, x, masked=None):
+        """Standardize, optionally mask, then attend within this graph/subgraph."""
         x = (x - self.feature_mean) / self.feature_std
         if masked is not None:
             x[masked] = self.mask_token
-        h = self.moe(x)
+        return self.shared_attention(x)
+
+    def encode(self, x, edges, masked=None):
+        h = self.moe(self.preprocess(x, masked))
         for layer in self.gnn:
             h = layer(h, edges)
         return h
 
     def routing_weights(self, x):
-        """Unmasked routing in the same frozen input coordinate system as encode."""
-        return self.moe.routing_weights((x - self.feature_mean) / self.feature_std)
+        """Unmasked routing using the same graph context and preprocessing as encode."""
+        return self.moe.routing_weights(self.preprocess(x))
 
     def reconstruction_losses(self, x, edges, domain, masked):
         h = self.encode(x, edges, masked)

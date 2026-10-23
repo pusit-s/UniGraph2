@@ -169,3 +169,37 @@ sbatch all_datasets_report.sbatch results/all-datasets-JOBID \
 ```
 
 Each target is excluded from encoder pre-training and the RoMA bank. Four targets use Amazon-Cloth as source; Amazon-Cloth evaluation uses Amazon-Sports as source. All target/method pairs retain the prior 160 source updates and optional 96 gate-only updates. Every run probes CLIP, NoPretrain and UniGraph2 using three probe seeds. Reports include all six conditions, paired deltas, frozen references, per-probe scores, split/candidate provenance, job IDs and Figure-3-style visualizations for every dataset. Correctness checks now include link split isolation, negative validity, ranking ties, frozen edge-probe inputs, reproducibility, bounded memory-mapped loading, and matching NC/LP reporting protocols.
+
+## Shared attention before the MoE
+
+The optional `--shared-attention` architecture follows the shared-attention / feed-forward-expert placement in the [Transformer versus MoE diagram](https://www.dailydoseofds.com/p/transformer-vs-mixture-of-experts-in-llms/). It is separate from `--expert attention`, whose experts each own an attention layer. The default remains the original MLP MoE with no shared attention.
+
+```mermaid
+flowchart LR
+    X[Node CLIP features] --> S[Source standardization and optional mask]
+    S --> A[Shared multihead self-attention]
+    A --> N[Output projection + residual + LayerNorm]
+    N --> R[Learned router]
+    R --> E[Weighted selected MLP experts]
+    E --> G[Existing GAT backbone]
+```
+
+`SharedSelfAttention` uses separate learned Q/K/V projections, scaled dot-product attention per head, concatenation, an output projection and post-residual LayerNorm: `u = LayerNorm(z + W_out Attention(z))`. The router and each selected MLP consume `u`. At the default CLIP width 512, four heads have width 128 each; the attention output remains width 512 and the existing MLP experts map 512 → 1024 → 1024. `--attention-heads` is independent of GAT `--heads`. The input width must divide evenly by the attention head count.
+
+Each call attends only within its current graph/PPR subgraph. Nodes are unordered, so this graph adaptation uses neither position encodings nor a causal attention mask. Attention dropout is zero; existing GAT dropout is disabled by evaluation mode. Masking remains before attention, and unmasked inference does not use the learned mask token. Both routing inspection and encoding share exactly the same preprocessing. Shared attention requires `--expert mlp`; combining it with the old per-expert attention option is rejected.
+
+```bash
+sbatch run.sbatch --shared-attention --attention-heads 4
+sbatch run.sbatch --shared-attention --top-k 2
+sbatch run.sbatch --expert attention             # old per-expert attention
+sbatch run.sbatch --shared-attention --router-posttrain roma
+sbatch shared_datasets.sbatch                    # 5 targets × 3 encoder seeds × 9 conditions
+```
+
+Dense routing remains the default; top-2 probabilities are learned and renormalized over the two selected MLP experts. The shared block adds parameters, so architectural comparisons match data, seeds, widths and update budgets rather than total parameter count. Result files record both total and shared-attention parameter counts.
+
+RoMA freezes the shared attention together with experts/GAT/decoders and updates only gate parameters. Its contextual teacher routes are computed on each complete original unmasked source PPR pool and averaged per successful node over the observations used to score reconstruction quality. They are never recomputed with only anchor nodes as the attention context. Online routing uses the complete current unmasked PPR subgraph. No evaluation features or graph enter this bank.
+
+Seventeen CPU/CUDA tests passed, including explicit dense attention references; Q/K/V/output/normalization and gate gradients; dense/top-2 routing; input immutability; domain decoder isolation; deterministic unmasked evaluation; node permutation equivariance; call-local graph context; contextual teacher averaging; and the existing NC/LP checks. A separate regression against the prior model verified exact initialization/state tensors/RNG and matching CPU/CUDA inference for both existing architectures over seeds 0/1/2. End-to-end checks completed for all nine dense cases (**84389**) and shared-attention top-2 LP baseline/task/RoMA cases (**84388**). The nine-condition report and routing figures were rendered and inspected on the smoke run.
+
+The earlier incomplete sweep **84381** and dependent report **84384** were cancelled when the requested architecture changed; its artifacts are retained and excluded from the new cross-seed comparison. `shared_datasets.sbatch` runs MLP, old per-expert attention, and shared-attention MLP, each with no post-training, task-only gate tuning, and RoMA: **135 runs**, with three probe seeds for every representation. The main comparison is dense throughout; top-2 has separate gradient and end-to-end smoke checks. Candidate populations and source holdouts follow the all-dataset protocol above, and the existing defaults remain unchanged.
