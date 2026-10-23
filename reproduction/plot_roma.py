@@ -21,9 +21,17 @@ COLORS = ['#3675B8', '#D58C27', '#858B35', '#C85C87']
 MARKERS = ['o', 's', '^', 'D']
 
 
+def metric_of(report):
+    return report.get('primary_metric', 'accuracy')
+
+
+def probe_scores(report, representation='UniGraph2'):
+    return [probe[f'test_{metric_of(report)}']*100 for probe in report['results'][representation]['runs']]
+
+
 def review_runs(root, seeds):
     """Refuse partial, unpaired, mixed-configuration or stale-source comparisons."""
-    records, reference = {}, None
+    records, reference, protocol_reference, metric_reference = {}, None, None, None
     allowed = {'output', 'seed', 'expert', 'router_posttrain', 'resume_pretrain'}
     for seed in seeds:
         baseline_hashes = {}
@@ -40,19 +48,25 @@ def review_runs(root, seeds):
             comparable = {k: v for k, v in cfg.items() if k not in allowed}
             if reference is None:
                 reference = (comparable, report['graphs'], report['data_files'], report['source_sha256'])
+                protocol_reference,metric_reference=report.get('evaluation_protocol'),metric_of(report)
             if (comparable, report['graphs'], report['data_files']) != reference[:3]:
                 raise ValueError(f'unmatched data or training configuration: {path}')
-            for name in ['model.py', 'graph_data.py', 'run.py', 'roma.py']:
+            if report.get('evaluation_protocol')!=protocol_reference or metric_of(report)!=metric_reference:
+                raise ValueError(f'unmatched evaluation protocol or candidates: {path}')
+            source_names=['model.py', 'graph_data.py', 'run.py', 'roma.py']
+            if 'link_probe.py' in reference[3]:
+                source_names.append('link_probe.py')
+            for name in source_names:
                 if report['source_sha256'][name] != reference[3][name]:
                     raise ValueError(f'mixed implementation: {path}/{name}')
             for representation, result in report['results'].items():
                 probes = result['runs']
                 if [p['seed'] for p in probes] != cfg['probe_seeds']:
                     raise ValueError(f'missing probe seeds: {path}/{representation}')
-                scores = [p['test_accuracy']*100 for p in probes]
+                scores = probe_scores(report, representation)
                 if not all(0 <= score <= 100 for score in scores):
                     raise ValueError('invalid accuracy')
-                if not np.isclose(np.mean(scores), result['mean_test_accuracy_percent']):
+                if not np.isclose(np.mean(scores), result[f'mean_test_{metric_of(report)}_percent']):
                     raise ValueError('reported mean disagrees with probe rows')
             if method == 'none':
                 baseline_hashes[expert] = hashlib.sha256((path/'checkpoint.pt').read_bytes()).hexdigest()
@@ -75,14 +89,16 @@ def review_runs(root, seeds):
 def summarize(records, seeds):
     rows = []
     for expert, method, label in CONDITIONS:
-        seed_means = [np.mean([r['test_accuracy']*100 for r in records[(seed, expert, method)]['results']['UniGraph2']['runs']]) for seed in seeds]
+        seed_means = [np.mean(probe_scores(records[(seed, expert, method)])) for seed in seeds]
+        metric=metric_of(records[(seeds[0],expert,method)])
         row = {'expert': expert, 'method': method, 'label': label,
-               'mean_test_accuracy_percent': float(np.mean(seed_means)),
+               'primary_metric':metric, 'mean_test_score_percent':float(np.mean(seed_means)),
+               f'mean_test_{metric}_percent': float(np.mean(seed_means)),
                'std_across_encoder_seeds': float(np.std(seed_means)),
                'seed_means': [float(v) for v in seed_means],
                'job_ids': [records[(seed, expert, method)]['environment']['slurm_job_id'] for seed in seeds]}
         if method == 'roma':
-            controls = [records[(seed, expert, 'task')]['results']['UniGraph2']['mean_test_accuracy_percent'] for seed in seeds]
+            controls = [np.mean(probe_scores(records[(seed, expert, 'task')])) for seed in seeds]
             deltas = np.asarray(seed_means)-controls
             row['paired_delta_vs_router_task'] = {'mean': float(deltas.mean()), 'population_std': float(deltas.std()), 'per_seed': deltas.tolist()}
         rows.append(row)
@@ -205,7 +221,7 @@ def export_figures(root, records, seeds, rows, n_nodes, plot_seed):
     plt.close(fig)
 
     labels = [row['label'] for row in rows]
-    means = [row['mean_test_accuracy_percent'] for row in rows]
+    means = [row['mean_test_score_percent'] for row in rows]
     stds = [row['std_across_encoder_seeds'] for row in rows]
     fig, ax = plt.subplots(figsize=(11, 5))
     y = np.arange(len(rows))
@@ -215,7 +231,7 @@ def export_figures(root, records, seeds, rows, n_nodes, plot_seed):
     ax.set_yticks(y, labels)
     ax.invert_yaxis()
     ax.set_xlim(0, 100)
-    ax.set_xlabel('Frozen linear-probe test accuracy (%)')
+    ax.set_xlabel('Frozen linear-probe test accuracy (%)' if rows[0]['primary_metric']=='accuracy' else 'Frozen edge-probe test sampled MRR (%)')
     ax.set_title('UniGraph2 transfer: MLP, attention and RoMA')
     ax.grid(axis='x', color='#E5E5E5', linewidth=.7)
     ax.set_axisbelow(True)
@@ -252,36 +268,43 @@ def main():
     rows = summarize(records, args.seeds)
     provenance = export_figures(args.comparison, records, args.seeds, rows, args.nodes, args.plot_seed)
     cfg = next(iter(records.values()))['args']
+    metric=metric_of(next(iter(records.values())))
+    metric_label='accuracy' if metric=='accuracy' else 'sampled MRR'
     evidence = {'status': 'completed', 'summary': rows, 'encoder_seeds': args.seeds,
                 'probe_seeds': cfg['probe_seeds'], 'visualization': provenance,
-                'scope': 'bounded cloth-copurchase to ele-fashion transfer, not a full benchmark',
+                'scope': f"bounded {', '.join(cfg['pretrain'])} to {cfg['evaluate']} transfer, not a full benchmark",
+                'primary_metric':metric,
+                'evaluation_protocol':next(iter(records.values())).get('evaluation_protocol'),
                 'runs': [{'encoder_seed': seed, 'expert': expert, 'method': method, 'report': report}
                          for (seed, expert, method), report in records.items()]}
     (args.comparison/'comparison.json').write_text(json.dumps(evidence, indent=2))
     with (args.comparison/'scores.csv').open('w') as handle:
         writer = csv.writer(handle)
-        writer.writerow(['encoder_seed', 'expert', 'posttrain', 'representation', 'probe_seed', 'valid_accuracy', 'test_accuracy', 'selected_epoch', 'slurm_job_id'])
+        writer.writerow(['encoder_seed', 'expert', 'posttrain', 'representation', 'probe_seed', f'valid_{metric}', f'test_{metric}', 'selected_epoch', 'slurm_job_id'])
         for (seed, expert, method), report in records.items():
             for representation, result in report['results'].items():
                 for probe in result['runs']:
-                    writer.writerow([seed, expert, method, representation, probe['seed'], probe['valid_accuracy'], probe['test_accuracy'], probe['selected_epoch'], report['environment']['slurm_job_id']])
+                    writer.writerow([seed, expert, method, representation, probe['seed'], probe[f'valid_{metric}'], probe[f'test_{metric}'], probe['selected_epoch'], report['environment']['slurm_job_id']])
     lines = ['# UniGraph2, attention and RoMA comparison', '',
              'Completed real-data transfer experiment. Mean ± population standard deviation across encoder seeds, each averaged over probe seeds.', '',
-             '| Condition | Test accuracy (%) | Encoder-seed means (%) | Slurm jobs |', '| --- | ---: | --- | --- |']
+             f'| Condition | Test {metric_label} (%) | Encoder-seed means (%) | Slurm jobs |', '| --- | ---: | --- | --- |']
     for row in rows:
         values = ', '.join(f'{v:.2f}' for v in row['seed_means'])
-        lines.append(f"| {row['label']} | {row['mean_test_accuracy_percent']:.2f} ± {row['std_across_encoder_seeds']:.2f} | {values} | {', '.join(row['job_ids'])} |")
+        lines.append(f"| {row['label']} | {row['mean_test_score_percent']:.2f} ± {row['std_across_encoder_seeds']:.2f} | {values} | {', '.join(row['job_ids'])} |")
     lines += ['', '![Performance](figures/performance.png)', '', '![Figure 3 adaptation](figures/figure3-routing.png)', '',
               'The fourth panel compares the earlier attention expert method. No label-optimized oracle is constructed. Four semantic groups are inferred once from raw CLIP features, and every panel uses the same nodes and group assignments. UMAP layouts are independently fit with fixed settings; their apparent geometry is not a quantitative alignment test.', '',
               '## Adaptation and controls', '',
               '[RoMA](https://arxiv.org/html/2511.07419v2) fine-tunes routers against successful semantic neighbors with experts frozen (Eqs. 5–10). This graph adaptation uses normalized frozen CLIP features, Gaussian kNN weights, and fixed unmasked teacher routes. Success means the lowest half of mean masked reconstruction errors within each pre-training domain, rather than correct labeled answers. This surrogate is an experimental design choice.', '',
-              f"All conditions use {cfg['epochs']} passes × {cfg['steps']} Amazon-Cloth subgraphs, lr {cfg['lr']}, warmup {cfg['warmup']}, standardization {cfg['standardize']}, width {cfg['hidden']}, {cfg['experts']} experts, and top-k {cfg['top_k']} (zero means dense). Evaluation uses the first {cfg['eval_limit']} Ele-Fashion nodes and original intersected splits. Encoder seeds: {args.seeds}; probe seeds: {cfg['probe_seeds']}.", '',
+              f"All conditions use {cfg['epochs']} passes × {cfg['steps']} subgraphs per source domain ({', '.join(cfg['pretrain'])}), lr {cfg['lr']}, warmup {cfg['warmup']}, standardization {cfg['standardize']}, width {cfg['hidden']}, {cfg['experts']} experts, and top-k {cfg['top_k']} (zero means dense). Evaluation uses the first {cfg['eval_limit']} nodes of {cfg['evaluate']}. Encoder seeds: {args.seeds}; probe seeds: {cfg['probe_seeds']}.", '',
               f"Task-only and RoMA each add {cfg['router_epochs']} × {cfg['steps']} gate-only updates at lr {cfg['router_lr']}, branching from the identical pretrained checkpoint within each expert/seed. Frozen modules run with dropout disabled. RoMA uses λ={cfg['roma_lambda']}, k={cfg['roma_k']}, σ={cfg['roma_sigma']}; λ warms up with the learning rate. Defaults were fixed before examining results; no test-based selection was performed.", '',
               '## Paired effect of manifold regularization', '']
     for row in rows:
         if 'paired_delta_vs_router_task' in row:
             delta = row['paired_delta_vs_router_task']
             lines.append(f"- {row['expert'].upper()}: RoMA − task-only = {delta['mean']:+.3f} ± {delta['population_std']:.3f} percentage points across matched encoder seeds.")
+    if metric=='mrr':
+        lines += ['', f"Link prediction uses {cfg['lp_negatives']} fixed sampled non-neighbors per validation/test query in the bounded node cohort, excluding every known positive and self loop. Original positive split membership is preserved, after removing duplicates and edges already observed in earlier splits. These are sampled-MRR scores, not official full-graph candidate scores. The encoder sees training edges only. Head epochs are selected by validation MRR; test MRR/Hits are evaluated only after selection.", '',
+                  f"Protocol: `{json.dumps(next(iter(records.values()))['evaluation_protocol'],sort_keys=True)}`."]
     lines += ['', '## Original-space routing diagnostics', '',
               f"These diagnostics use the {provenance['nodes']} plotted nodes from encoder seed {provenance['encoder_seed']}. kNN overlap@15 compares raw-CLIP semantic neighbors with routing neighbors before UMAP. Chance is approximately 15/(N−1); higher overlap alone does not prove better task performance.", '',
               '| Routing | CLIP kNN overlap@15 | CLIP-cluster silhouette | Mean expert probability SD | Effective rank |', '| --- | ---: | ---: | ---: | ---: |']

@@ -1,4 +1,4 @@
-"""Pretrain UniGraph2 on local MM-Graph domains and evaluate a frozen NC encoder."""
+"""Pretrain UniGraph2 on local MM-Graph domains and evaluate a frozen NC/LP encoder."""
 import argparse
 import copy
 import hashlib
@@ -14,6 +14,7 @@ from torch.nn import functional as F
 from graph_data import read_graph, ppr_nodes, spd_targets
 from model import UniGraph2
 from roma import posttrain
+from link_probe import prepare_link_splits, lp_probe
 
 
 def seed_all(seed):
@@ -98,12 +99,19 @@ def main():
     parser.add_argument('--eval-limit', type=int, default=4096, help='first N nodes induced graph; 0 for full graph')
     parser.add_argument('--probe-epochs', type=int, default=5000)
     parser.add_argument('--probe-patience', type=int, default=100)
+    parser.add_argument('--lp-negatives', type=int, default=100, help='fixed non-neighbors/query in bounded link evaluation; not official full-graph negatives')
+    parser.add_argument('--lp-train-edges', type=int, default=4096)
+    parser.add_argument('--lp-eval-edges', type=int, default=1024, help='maximum positive queries in each validation/test split')
+    parser.add_argument('--lp-split-seed', type=int, default=1729, help='fixed cohort/candidates, shared across encoder and probe seeds')
+    parser.add_argument('--lp-validation-every', type=int, default=5)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--probe-seeds', type=int, nargs='+', default=[0,1,2])
     parser.add_argument('--device', choices=['cpu','cuda'], default='cuda')
     args = parser.parse_args()
     if min(args.epochs,args.steps,args.subgraph_nodes,args.probe_epochs,args.probe_patience)<1 or args.eval_limit<0 or args.spd_pairs<0 or not 0<=args.warmup<1:
         parser.error('invalid run limits')
+    if min(args.lp_negatives,args.lp_train_edges,args.lp_eval_edges,args.lp_validation_every) < 1:
+        parser.error('invalid link-probe limits')
     if args.evaluate in args.pretrain:
         parser.error('evaluation domain must be excluded from pre-training')
     if args.router_epochs < 1 or args.router_lr <= 0 or args.roma_lambda < 0 or args.roma_k < 1 or args.roma_sigma <= 0 or not 0 < args.roma_success_fraction <= 1:
@@ -120,7 +128,17 @@ def main():
     seed_all(args.seed)
     started = time.time()
     graphs = [read_graph(args.data_root, name) for name in args.pretrain]
-    target = read_graph(args.data_root, args.evaluate, limit=args.eval_limit)
+    target = read_graph(args.data_root, args.evaluate, limit=args.eval_limit, load_edge_splits=True)
+    task = 'node_classification' if target.y is not None else 'link_prediction'
+    primary_metric = 'accuracy' if target.y is not None else 'mrr'
+    evaluation_protocol = {'task': task, 'primary_metric': primary_metric, 'nodes': len(target.x)}
+    link_splits = None
+    if target.edge_splits is not None:
+        link_splits, evaluation_protocol = prepare_link_splits(
+            target.edge_splits, len(target.x), args.lp_split_seed, args.lp_negatives,
+            args.lp_train_edges, args.lp_eval_edges)
+        torch.save(link_splits, args.output/'evaluation_splits.pt')
+    print('EVALUATION', evaluation_protocol, flush=True)
     if len({g.x.shape[1] for g in graphs+[target]}) != 1:
         raise ValueError('all domains must use the same CLIP feature space')
     model_kwargs = dict(input_dim=graphs[0].x.shape[1], domains=args.pretrain, hidden=args.hidden,
@@ -133,7 +151,7 @@ def main():
         model.feature_std.copy_(features.std(0).clamp_min(1e-6))
     tx, te, _ = target.subgraph(np.arange(len(target.x)))
     tx, te = tx.to(args.device), te.to(args.device)
-    y = target.y.to(args.device)
+    y = target.y.to(args.device) if target.y is not None else None
     print('DATA',[(g.name,len(g.x),g.x.shape[1],g.adjacency.nnz) for g in graphs+[target]], flush=True)
     print('MODEL',model_kwargs, 'parameters',sum(p.numel() for p in model.parameters()),flush=True)
     model.eval()
@@ -170,7 +188,8 @@ def main():
         base_keys = ['pretrain', 'evaluate', 'hidden', 'layers', 'experts', 'heads', 'top_k', 'expert',
                      'dropout', 'mask_rate', 'gamma', 'lambda_spd', 'epochs', 'steps', 'subgraph_nodes',
                      'spd_pairs', 'lr', 'warmup', 'standardize', 'weight_decay', 'eval_limit', 'seed',
-                     'probe_epochs', 'probe_patience', 'probe_seeds']
+                     'probe_epochs', 'probe_patience', 'probe_seeds', 'lp_negatives', 'lp_train_edges',
+                     'lp_eval_edges', 'lp_split_seed', 'lp_validation_every']
         for key in base_keys:
             if baseline['args'].get(key) != getattr(args, key):
                 raise ValueError(f'baseline configuration mismatch: {key}')
@@ -245,18 +264,22 @@ def main():
     for name, emb in [('CLIP',tx.cpu()),('NoPretrain',initial),('UniGraph2',learned)]:
         runs=[]
         for probe_seed in args.probe_seeds:
-            metrics,head=probe(emb.to(args.device),y,target.splits,probe_seed,args.probe_epochs,args.probe_patience)
+            if task == 'node_classification':
+                metrics,head=probe(emb.to(args.device),y,target.splits,probe_seed,args.probe_epochs,args.probe_patience)
+            else:
+                metrics,head=lp_probe(emb.to(args.device),link_splits,probe_seed,args.probe_epochs,args.probe_patience,args.lp_validation_every)
             metrics['seed']=probe_seed
             runs.append(metrics)
             torch.save(head,args.output/f'probe_{name}_{probe_seed}.pt')
             print('PROBE',name,metrics,flush=True)
-        accuracies=[r['test_accuracy']*100 for r in runs]
-        results[name]={'mean_test_accuracy_percent':float(np.mean(accuracies)),
-                       'std_test_accuracy_percent':float(np.std(accuracies)), 'runs':runs}
+        scores=[r[f'test_{primary_metric}']*100 for r in runs]
+        results[name]={f'mean_test_{primary_metric}_percent':float(np.mean(scores)),
+                       f'std_test_{primary_metric}_percent':float(np.std(scores)), 'runs':runs}
     report={'status':'completed','scope':'bounded real-data method reproduction; not full paper benchmark',
             'args':{k:str(v) if isinstance(v,Path) else v for k,v in vars(args).items()},
             'model_kwargs':model_kwargs,'history':history,'router_history':router_history,
             'pretrain_lineage':lineage,'results':results,'seconds':time.time()-started,
+            'task':task,'primary_metric':primary_metric,'evaluation_protocol':evaluation_protocol,
             'parameter_counts':{'total':sum(p.numel() for p in model.parameters()),
                                 'router':sum(p.numel() for p in model.moe.gate.parameters())},
             'environment':{'python':os.sys.version,'torch':torch.__version__,'cuda':torch.version.cuda,

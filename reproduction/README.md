@@ -63,7 +63,7 @@ Data stays in `/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph`. No raw da
 - Learned node mask token, random masking without replacement and masked-only scaled cosine reconstruction loss (Eq. 15). Labels never enter this objective.
 - Shared MoE alignment, followed by four GAT layers. Domain-specific reconstruction decoders and a shared concatenated-pair shortest-path regressor.
 - Approximate PPR subgraphs, up to 256 nodes, with precomputed shortest-path targets and sampled finite node pairs.
-- Unmasked frozen inference; linear probes for fused CLIP, the identical encoder before pre-training (`NoPretrain`), and the trained encoder.
+- Unmasked frozen inference; node-classification linear probes and symmetric Hadamard-product linear edge probes for fused CLIP, the identical encoder before pre-training (`NoPretrain`), and the trained encoder.
 - Checkpoints, embeddings, sampled node IDs, loss history, trained probe weights, seed-level results and runtime environment metadata.
 
 ## Fidelity and limits
@@ -86,7 +86,7 @@ Data stays in `/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph`. No raw da
 | Probe | Adam, lr .01, up to 5000 epochs, early stopping | Same optimizer/lr/maximum; patience 100 by default; unit-normalized embeddings |
 | Repetitions | 10 or 20 depending on benchmark | Three probe seeds, one encoder seed by default |
 | Hardware/software | 8 A100 40GB, PyTorch 2.0.1, DGL 1.1.2 | One allocated GPU, PyTorch 2.5.1, native scatter-based GAT; device recorded in results |
-| Tasks | Linear probes, link prediction, few-shot, generation | Node-classification linear probing; other tasks are not implemented |
+| Tasks | Linear probes, link prediction, few-shot, generation | Node-classification and bounded link-prediction probing; few-shot/generation are not implemented |
 
 The default run is a limited transfer experiment. It cannot substantiate the paper's large-scale or cross-domain generalization claims. Accuracy must not be compared directly with the published Ele-Fashion score because the pre-training corpus and evaluation graph differ. `--pretrain` supports domain-specific decoders but pre-training on Sports changes it into a target-domain exposure condition for Sports evaluation.
 
@@ -106,7 +106,7 @@ Generate a Markdown report and inspect saved embedding variation on a compute no
 sbatch report.sbatch results/run-83924
 ```
 
-Full benchmark replication still requires the complete Products, Papers100M and Goodreads pre-training data, full downstream graphs, independent encoder repetitions and implementations of link-prediction, few-shot and generative evaluations. The present code does not implement those additional tasks.
+Full benchmark replication still requires the complete Products, Papers100M and Goodreads pre-training data, full downstream graphs, independent encoder repetitions, full-candidate link prediction, and implementations of few-shot and generative evaluations.
 
 ## RoMA routing and attention comparison
 
@@ -149,3 +149,23 @@ The Figure-3-style plot uses the same 1,500 randomly sampled Ele-Fashion nodes i
 Tracked evidence: [comparison report](experiments/roma-84359/COMPARISON.md), [performance chart](experiments/roma-84359/figures/performance.png), [Figure 3 PNG](experiments/roma-84359/figures/figure3-routing.png) / [PDF](experiments/roma-84359/figures/figure3-routing.pdf) / [SVG](experiments/roma-84359/figures/figure3-routing.svg), [all routing conditions](experiments/roma-84359/figures/routing-controls.png), [per-probe scores](experiments/roma-84359/scores.csv), [complete source-backed results](experiments/roma-84359/comparison.json), and [plot settings and diagnostics](experiments/roma-84359/figures/visualization.json). Raw source CLIP features are read in place; archived plot data contains node IDs, cluster assignments, learned routing weights and UMAP coordinates.
 
 Validation: nine CPU/CUDA tests passed, covering the manifold formula, self-exclusion with domain/node identity, live gate gradients with detached teacher routes, frozen non-router state, RNG-isolated label-free bank construction, complete paired-run validation and the existing inference/gradient invariants. Six-condition integration smoke test: job **84358**. Initial array 84355 stopped on an overly strict bitwise CUDA inference check and is excluded from results; the final array uses the corrected numerical check and exactly reused baseline reference embeddings. No environment packages were installed, and the upstream code tree was not edited.
+
+## All-dataset NC / link-prediction workflow
+
+`download_mmgraph.py` downloads only missing CLIP features and task files into the canonical data root and verifies every required file against its SHA256 in MM-Graph release `c707a3203b77a153f11370a05d2a9be6571f7670`. Download job **84374** completed for **Ele-Fashion, Books-NC, Books-LP, Amazon-Sports, and Amazon-Cloth**. The two CoDEx folders in that release contain relational triples without cached CLIP node features and are recorded as unsupported by this feature/task contract. Raw images and unused feature families are not downloaded.
+
+`read_graph` memory-maps tensor files when supported and slices target CLIP rows before fusion, so the bounded Books cohorts do not require materializing multi-gigabyte feature copies. Labels and original split IDs remain aligned. LP target message passing uses training edges only.
+
+`link_probe.py` preserves official positive split membership within the first 4,096 nodes. It deduplicates undirected positives and excludes held-out edges already present in earlier splits, including reversed training edges. Fixed seed 1729 chooses at most 4,096 training positives and 1,024 positives each for validation/test. Each held-out query has 100 fixed distinct sampled non-neighbors from that cohort, excluding self loops and every known positive. Training uses one fixed negative per positive. Candidate arrays and their logical SHA256 are shared across all conditions and encoder/probe seeds. This is **sampled MRR**, with a different candidate population from the official full-graph benchmark. Accuracy and MRR must not be pooled into one average.
+
+The frozen edge probe is a linear classifier on Hadamard products of unit-normalized endpoint embeddings. It uses Adam lr .01, up to 5000 epochs and patience 100, checking validation MRR every five epochs. Only the selected head is evaluated on test; MRR and Hits@1/3/10 use average optimistic/pessimistic ranks for ties. Existing node-classification defaults are unchanged.
+
+```bash
+sbatch download_mmgraph.sbatch
+sbatch all_datasets.sbatch # 5 datasets × 3 encoder seeds × 6 conditions = 90 runs
+sbatch all_datasets_report.sbatch results/all-datasets-JOBID \
+  --download-manifest results/download-84374.json \
+  --archive experiments/all-datasets-JOBID
+```
+
+Each target is excluded from encoder pre-training and the RoMA bank. Four targets use Amazon-Cloth as source; Amazon-Cloth evaluation uses Amazon-Sports as source. All target/method pairs retain the prior 160 source updates and optional 96 gate-only updates. Every run probes CLIP, NoPretrain and UniGraph2 using three probe seeds. Reports include all six conditions, paired deltas, frozen references, per-probe scores, split/candidate provenance, job IDs and Figure-3-style visualizations for every dataset. Correctness checks now include link split isolation, negative validity, ranking ties, frozen edge-probe inputs, reproducibility, bounded memory-mapped loading, and matching NC/LP reporting protocols.

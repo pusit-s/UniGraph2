@@ -9,7 +9,12 @@ from scipy.sparse.csgraph import shortest_path
 
 
 def load(path):
-    return torch.load(path, map_location='cpu', weights_only=False)
+    try:
+        return torch.load(path, map_location='cpu', weights_only=False, mmap=True)
+    except RuntimeError as error:
+        if 'mmap' not in str(error):
+            raise
+        return torch.load(path, map_location='cpu', weights_only=False)
 
 
 def edge_tensor(value):
@@ -50,6 +55,7 @@ class Graph:
     adjacency: sparse.csr_matrix
     y: torch.Tensor = None
     splits: dict = None
+    edge_splits: dict = None
 
     def subgraph(self, ids):
         ids = np.asarray(ids, dtype=np.int64)
@@ -60,18 +66,21 @@ class Graph:
         return self.x[torch.from_numpy(ids)], edges, adj
 
 
-def read_graph(root, name, edge_split='random', limit=0):
+def read_graph(root, name, edge_split='random', limit=0, load_edge_splits=False):
     folder = Path(root) / name
     cached = load(folder / 'clip_feat.pt')
+    source_nodes = len(cached) if isinstance(cached, torch.Tensor) else len(next(iter(cached.values())) if isinstance(cached, dict) else cached[0])
     if isinstance(cached, torch.Tensor) and cached.ndim == 2:
         if cached.shape[1] != 1024:
             raise ValueError('expected concatenated 512d text + 512d image CLIP features')
-        cached = list(cached.split(512, dim=1))
+        cached = list(cached[:limit or len(cached)].split(512, dim=1))
     x = fuse_features(cached)
-    y = splits = None
+    y = splits = edge_splits = None
     if (folder / 'nc_edges-nodeid.pt').exists():
         edges = edge_tensor(load(folder / 'nc_edges-nodeid.pt'))
         y = torch.as_tensor(load(folder / 'labels-w-missing.pt'), dtype=torch.long).flatten()
+        if len(y) < len(x):
+            raise ValueError('node labels do not align with feature rows')
         splits = load(folder / 'split.pt')
         splits = {k: torch.as_tensor(v).flatten() for k,v in splits.items()}
     else:
@@ -82,8 +91,15 @@ def read_graph(root, name, edge_split='random', limit=0):
         if isinstance(train, dict):
             train = train['edge'] if 'edge' in train else torch.stack([train['source_node'],train['target_node']],1)
         edges = edge_tensor(train)
+        if load_edge_splits:
+            edge_splits = {}
+            for key in ['train', 'valid', 'test']:
+                value = data[key]
+                if isinstance(value, dict):
+                    value = value['edge'] if 'edge' in value else torch.stack([value['source_node'], value['target_node']], 1)
+                edge_splits[key] = edge_tensor(value)
     n = len(x)
-    if edges.numel() and (edges.min() < 0 or edges.max() >= n):
+    if edges.numel() and (edges.min() < 0 or edges.max() >= source_nodes):
         raise ValueError('graph edges do not align with feature rows')
     if limit:
         n = min(limit, n)
@@ -94,13 +110,15 @@ def read_graph(root, name, edge_split='random', limit=0):
             y = y[:n]
             splits = {k: torch.as_tensor(v).flatten() for k, v in splits.items()}
             splits = {k: v[:n].nonzero().flatten() if v.dtype == torch.bool else v[v < n] for k, v in splits.items()}
+    elif edges.numel() and edges.max() >= n:
+        raise ValueError('graph edges do not align with feature rows')
     row, col = edges.numpy()
     adj = sparse.coo_matrix((np.ones(len(row)), (row, col)), shape=(n, n)).tocsr()
     adj = adj.maximum(adj.T)
     adj.setdiag(0)
     adj.eliminate_zeros()
     adj.data[:] = 1.
-    return Graph(name, x, adj, y, splits)
+    return Graph(name, x, adj, y, splits, edge_splits)
 
 
 def ppr_nodes(graph, seed, topk=256, alpha=.15, epsilon=1e-4):

@@ -12,6 +12,7 @@ from scipy import sparse
 from graph_data import fuse_features, spd_targets, Graph, ppr_nodes
 from model import GATLayer, UniGraph2
 from roma import build_bank, freeze_for_router, neighbor_targets, manifold_loss
+from link_probe import prepare_link_splits, ranking_metrics, lp_probe
 
 class CoreTests(unittest.TestCase):
     def test_available_modalities(self):
@@ -189,6 +190,90 @@ class CoreTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     review_runs(root,[0,1,2])
             path.write_text(json.dumps(valid))
+            # The same validation/aggregation contract must work for MRR, and
+            # must reject a changed negative-candidate population.
+            for result_path in root.glob('seed-*/*/results.json'):
+                report=json.loads(result_path.read_text())
+                report['primary_metric']='mrr'
+                report['evaluation_protocol']={'split_sha256':'fixed-candidates'}
+                for result in report['results'].values():
+                    result['mean_test_mrr_percent']=result.pop('mean_test_accuracy_percent')
+                    for probe in result['runs']:
+                        probe['test_mrr']=probe.pop('test_accuracy')
+                result_path.write_text(json.dumps(report))
+            rows=summarize(review_runs(root,[0,1,2]),[0,1,2])
+            self.assertEqual(rows[0]['mean_test_mrr_percent'],20.)
+            mixed=json.loads(path.read_text())
+            mixed['evaluation_protocol']['split_sha256']='different-candidates'
+            path.write_text(json.dumps(mixed))
+            with self.assertRaises(ValueError):
+                review_runs(root,[0,1,2])
+
+    @staticmethod
+    def link_fixture():
+        return {name:torch.tensor(pairs).T for name,pairs in {
+            'train':[(0,1),(1,0),(2,3),(4,5)],
+            'valid':[(1,0),(0,2),(6,7),(0,2)],
+            'test':[(2,0),(8,9),(10,11)]}.items()}
+
+    def test_link_split_isolation_and_negatives(self):
+        raw=self.link_fixture()
+        state=torch.random.get_rng_state().clone()
+        splits,protocol=prepare_link_splits(raw,20,negatives=3)
+        self.assertTrue(torch.equal(state,torch.random.get_rng_state()))
+        self.assertEqual([len(split['positive'][0]) for split in splits.values()],[3,2,2])
+        self.assertEqual(protocol['cohort_counts']['valid']['overlap_with_earlier_splits_removed'],1)
+        self.assertEqual(protocol['cohort_counts']['test']['overlap_with_earlier_splits_removed'],1)
+        known={tuple(sorted(pair)) for edges in raw.values() for pair in edges.T.tolist()}
+        observed=set()
+        for name,split in splits.items():
+            positives={tuple(sorted(pair)) for pair in split['positive'].T.tolist()}
+            self.assertFalse(observed&positives)
+            observed|=positives
+            for (source,target),negative in zip(split['positive'].T.tolist(),split['negative_targets'].tolist()):
+                self.assertNotIn(source,negative)
+                self.assertNotIn(target,negative)
+                self.assertEqual(len(set(negative)),len(negative))
+                self.assertTrue(all(tuple(sorted((source,node))) not in known for node in negative))
+        repeated,again=prepare_link_splits(raw,20,negatives=3)
+        self.assertEqual(protocol,again)
+        _,changed=prepare_link_splits(raw,20,seed=2,negatives=3)
+        self.assertNotEqual(protocol['split_sha256'],changed['split_sha256'])
+
+    def test_link_ranking_ties(self):
+        scores=torch.tensor([[.8,.9,.7,.8],[.5,.5,.1,.0]])
+        result=ranking_metrics(scores)
+        self.assertAlmostEqual(result['mrr'],(.4+2/3)/2,places=6)
+        self.assertEqual(result['hits@1'],0.)
+        self.assertEqual(result['hits@3'],1.)
+        with self.assertRaises(ValueError):
+            ranking_metrics(torch.tensor([[float('nan'),0.]]))
+
+    def test_link_probe_freezes_embeddings(self):
+        splits,_=prepare_link_splits(self.link_fixture(),20,negatives=3)
+        for device in ['cpu']+(['cuda'] if torch.cuda.is_available() else []):
+            embeddings=torch.randn(20,8,device=device,requires_grad=True)
+            first,state=lp_probe(embeddings,splits,0,epochs=10,patience=5,validation_every=2)
+            again,_=lp_probe(embeddings,splits,0,epochs=10,patience=5,validation_every=2)
+            self.assertEqual(first,again)
+            self.assertIsNone(embeddings.grad)
+            self.assertTrue(1<=first['selected_epoch']<=first['epochs_run']<=10)
+            self.assertTrue(0<first['test_mrr']<=1)
+
+    def test_memory_mapped_bounded_graph_adapter(self):
+        from graph_data import read_graph
+        with tempfile.TemporaryDirectory() as temporary:
+            folder=Path(temporary)/'tiny'
+            folder.mkdir()
+            torch.save(torch.ones(20,1024),folder/'clip_feat.pt')
+            raw={name:{'source_node':edges[0],'target_node':edges[1]} for name,edges in self.link_fixture().items()}
+            torch.save(raw,folder/'lp-edge-split.pt')
+            graph=read_graph(temporary,'tiny',limit=12,load_edge_splits=True)
+            self.assertEqual(graph.x.shape,(12,512))
+            self.assertTrue(set(graph.edge_splits)=={'train','valid','test'})
+            # Held-out edge 6--7 must not appear in encoder adjacency.
+            self.assertEqual(graph.adjacency[6,7],0)
+            self.assertEqual(graph.adjacency[0,1],1)
 
 if __name__=='__main__':
     torch.set_num_threads(4)
