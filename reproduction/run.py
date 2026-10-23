@@ -239,7 +239,7 @@ def main():
     with torch.no_grad():
         learned=model.encode(tx,te).detach().cpu()
         routing=model.routing_weights(tx).detach().cpu()
-    torch.save({'pretrained':learned,'untrained':initial,'routing':routing,'clip':tx.cpu(),
+    torch.save({'pretrained':learned,'untrained':initial,'routing':routing,
                 'node_ids':torch.arange(len(tx))},args.output/'embeddings.pt')
     results={}
     for name, emb in [('CLIP',tx.cpu()),('NoPretrain',initial),('UniGraph2',learned)]:

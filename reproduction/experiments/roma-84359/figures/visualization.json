@@ -1,0 +1,67 @@
+{
+  "encoder_seed": 0,
+  "sampling_seed": 42,
+  "nodes": 1500,
+  "clip_source": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/ele-fashion/clip_feat.pt",
+  "cluster_method": "KMeans on unit-normalized raw CLIP, 4 clusters, n_init=10; no labels",
+  "cluster_sizes": [
+    542,
+    268,
+    514,
+    176
+  ],
+  "umap": {
+    "n_neighbors": 15,
+    "min_dist": 0.1,
+    "metric": "euclidean",
+    "random_state": 42,
+    "n_jobs": 1,
+    "n_components": 2
+  },
+  "metrics": {
+    "mlp-none": {
+      "semantic_knn_overlap_at_15": 0.17973333333333336,
+      "routing_silhouette_of_clip_clusters": 0.07949189841747284,
+      "mean_expert_probability_std": 0.026422955095767975,
+      "effective_rank": 6.184975624084473
+    },
+    "attention-none": {
+      "semantic_knn_overlap_at_15": 0.18004444444444445,
+      "routing_silhouette_of_clip_clusters": 0.11276319622993469,
+      "mean_expert_probability_std": 0.02721671387553215,
+      "effective_rank": 5.803245544433594
+    },
+    "mlp-task": {
+      "semantic_knn_overlap_at_15": 0.2207111111111111,
+      "routing_silhouette_of_clip_clusters": 0.20746168494224548,
+      "mean_expert_probability_std": 0.04310879111289978,
+      "effective_rank": 3.749574899673462
+    },
+    "mlp-roma": {
+      "semantic_knn_overlap_at_15": 0.1860888888888889,
+      "routing_silhouette_of_clip_clusters": 0.06340599805116653,
+      "mean_expert_probability_std": 0.024094289168715477,
+      "effective_rank": 5.985077381134033
+    },
+    "attention-task": {
+      "semantic_knn_overlap_at_15": 0.18684444444444442,
+      "routing_silhouette_of_clip_clusters": 0.11875557154417038,
+      "mean_expert_probability_std": 0.03521782159805298,
+      "effective_rank": 4.362931251525879
+    },
+    "attention-roma": {
+      "semantic_knn_overlap_at_15": 0.1844888888888889,
+      "routing_silhouette_of_clip_clusters": 0.11475277692079544,
+      "mean_expert_probability_std": 0.024534426629543304,
+      "effective_rank": 5.436609745025635
+    }
+  },
+  "versions": {
+    "numpy": "2.2.6",
+    "torch": "2.5.1",
+    "sklearn": "1.7.2",
+    "matplotlib": "3.10.9",
+    "umap-learn": "0.5.12"
+  },
+  "note": "Each panel is fit independently. Original-space metrics, not apparent UMAP clustering, assess alignment."
+}

@@ -116,6 +116,7 @@ def export_figures(root, records, seeds, rows, n_nodes, plot_seed):
     import torch
     import umap
     from importlib.metadata import version
+    from graph_data import read_graph
 
     destination = root/'figures'
     destination.mkdir(exist_ok=True)
@@ -129,10 +130,12 @@ def export_figures(root, records, seeds, rows, n_nodes, plot_seed):
         artifacts[f'{expert}-{method}'] = torch.load(root/f'seed-{seed}'/f'{expert}-{method}'/'embeddings.pt', map_location='cpu', weights_only=False)
     base = artifacts['mlp-none']
     for artifact in artifacts.values():
-        torch.testing.assert_close(artifact['clip'], base['clip'], rtol=0, atol=0)
         torch.testing.assert_close(artifact['node_ids'], base['node_ids'], rtol=0, atol=0)
-    selected = np.sort(np.random.default_rng(plot_seed).choice(len(base['clip']), min(n_nodes, len(base['clip'])), replace=False))
-    clip = base['clip'][selected].numpy()
+    # Read CLIP in place; no raw dataset features need to be copied into artifacts.
+    target = read_graph(configuration['data_root'], evaluation, limit=configuration['eval_limit'])
+    selected = np.sort(np.random.default_rng(plot_seed).choice(len(base['node_ids']), min(n_nodes, len(base['node_ids'])), replace=False))
+    node_ids = base['node_ids'][selected].numpy()
+    clip = target.x[node_ids].numpy()
     clip = clip/np.linalg.norm(clip, axis=1, keepdims=True).clip(1e-20)
     groups = KMeans(n_clusters=4, n_init=10, random_state=plot_seed).fit_predict(clip)
     # Stable naming by smallest sampled node ID, rather than arbitrary k-means IDs.
@@ -193,10 +196,10 @@ def export_figures(root, records, seeds, rows, n_nodes, plot_seed):
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_xlabel(f"CLIP kNN overlap@15: {metrics[name]['semantic_knn_overlap_at_15']:.3f}")
-    fig.legend(handles=legend, loc='upper center', ncol=4, frameon=False)
+    fig.legend(handles=legend, loc='upper center', bbox_to_anchor=(.5, .955), ncol=4, frameon=False)
     fig.suptitle('Routing conditions on the same sampled nodes', y=.995)
     fig.text(.5, .02, 'Independent UMAP layouts. kNN overlap is measured in the original feature and routing spaces.', ha='center')
-    fig.subplots_adjust(top=.88, bottom=.10, hspace=.30)
+    fig.subplots_adjust(top=.86, bottom=.10, hspace=.30)
     fig.savefig(destination/'routing-controls.png', dpi=180)
     fig.savefig(destination/'routing-controls.pdf')
     plt.close(fig)
@@ -222,10 +225,11 @@ def export_figures(root, records, seeds, rows, n_nodes, plot_seed):
     fig.savefig(destination/'performance.png', dpi=180)
     fig.savefig(destination/'performance.pdf')
     plt.close(fig)
-    np.savez_compressed(destination/'manifold-data.npz', node_ids=selected, clip_clusters=groups,
-                        **{f'features_{name}': x for name, x in features.items()},
+    np.savez_compressed(destination/'manifold-data.npz', node_ids=node_ids, clip_clusters=groups,
+                        **{f'features_{name}': x for name, x in features.items() if name != 'CLIP'},
                         **{f'umap_{name}': x for name, x in coordinates.items()})
     provenance = {'encoder_seed': seed, 'sampling_seed': plot_seed, 'nodes': len(selected),
+                  'clip_source': str(Path(configuration['data_root'])/evaluation/'clip_feat.pt'),
                   'cluster_method': 'KMeans on unit-normalized raw CLIP, 4 clusters, n_init=10; no labels',
                   'cluster_sizes': np.bincount(groups).tolist(), 'umap': config, 'metrics': metrics,
                   'versions': {'numpy': np.__version__, 'torch': torch.__version__, 'sklearn': sklearn.__version__,

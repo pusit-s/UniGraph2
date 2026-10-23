@@ -2,6 +2,8 @@
 
 A runnable, paper-guided implementation of **UniGraph2: Learning a Unified Embedding Space to Bind Multimodal Graphs** (WWW 2025), with a bounded real-data experiment. This is a method reproduction, not a replication of the published benchmark scores.
 
+The latest [RoMA and attention comparison](#roma-comparison-results-array-84359) includes 18 completed runs and an archived [Figure-3-style visualization](experiments/roma-84359/figures/figure3-routing.png).
+
 ## Completed experiment
 
 Defaults use the collapse fix. Paper Table 9 settings, which collapse (job 81737, below), are `sbatch run.sbatch --lr 1e-3 --warmup 0 --no-standardize`. Slurm jobs **83924, 83926, 83928** (encoder seeds 0, 1, 2) completed on one GPU. Five correctness tests passed. Mean Ele-Fashion subset test accuracy across encoder seeds (each the mean of three probe seeds), ± population std across encoder seeds:
@@ -124,3 +126,26 @@ sbatch roma_report.sbatch results/roma-JOBID # validate paired runs and generate
 The six conditions are MLP and attention experts, each with no post-training, task-loss-only router tuning, and RoMA. Task-only and RoMA branch from the exact same saved baseline checkpoint and use identical post-training masks/order. Checkpoint lineage, input metadata, source hashes, complete probes and matched settings are checked. CUDA scatter operations may differ by a few ulps between processes; checkpoint resumption checks numerical agreement and reuses the saved untrained embeddings for exactly paired reference probes.
 
 `plot_roma.py` writes PNG/PDF/SVG Figure-3-style UMAP plots, a performance plot, per-probe CSV, inspectable coordinates/routes and JSON provenance, plus `COMPARISON.md`. Every panel uses the same randomly sampled nodes and four unsupervised CLIP groups. The fourth panel shows the earlier attention method instead of the paper's label-optimized oracle. Independent UMAP panels cannot establish alignment by their appearance: original-space CLIP/routing kNN overlap, silhouette, routing spread and effective rank are also reported. The first declared encoder seed is always plotted; no seed or view is chosen by test accuracy or apparent cluster separation.
+
+### RoMA comparison results (array 84359)
+
+All 18 runs completed on NVIDIA A100 80GB GPUs: encoder seeds 0/1/2 use Slurm task IDs **84360/84361/84359**, respectively (array **84359**, tasks 0–2). Every condition has all three frozen representations and three probe seeds. Figures and matched-run validation completed in CPU jobs **84362** and **84364**; the latter corrects the supplementary legend layout. Mean ± population std across encoder seeds, each averaged over probe seeds:
+
+| Trained encoder | Test accuracy (%) | Seed 0 / 1 / 2 (%) |
+| --- | ---: | --- |
+| UniGraph2 / original MLP experts | 84.30 ± 0.54 | 83.77 / 84.10 / 85.05 |
+| Earlier attention experts | 80.60 ± 0.42 | 80.84 / 80.95 / 80.00 |
+| MLP + task-only router tuning | 84.17 ± 0.47 | 83.74 / 83.93 / 84.83 |
+| MLP + RoMA | **84.52 ± 0.47** | 84.18 / 84.18 / 85.19 |
+| Attention + task-only router tuning | 79.40 ± 3.03 | 81.34 / 81.73 / 75.12 |
+| Attention + RoMA | 78.61 ± 3.99 | 81.26 / 81.59 / 72.97 |
+
+MLP + RoMA improves the original trained encoder by **0.22 percentage points**, and its equal-budget task-only control by **0.353 ± 0.080 points** (paired population std across encoder seeds). This is a small observed gain, not evidence of statistical significance or full-benchmark superiority. It remains below frozen CLIP (**85.61%**) and the untrained MLP encoder (**86.32 ± 0.23%**).
+
+Attention is unstable under router post-training: RoMA averages **1.99 points below** the earlier attention baseline and **0.790 ± 0.960 points below** the matched task-only control. Seed 2 deteriorates in both post-training conditions; no seed was excluded and no settings were selected from test results.
+
+The Figure-3-style plot uses the same 1,500 randomly sampled Ele-Fashion nodes in all panels (encoder seed 0, sampling/UMAP seed 42). It does **not** reproduce the paper's sharply separated RoMA clusters: original-space semantic/routing kNN overlap@15 is **0.1797 → 0.1861** for MLP baseline → RoMA. The task-only control reaches 0.2207 despite lower probe accuracy. CLIP-cluster silhouette also decreases under MLP RoMA (0.0795 → 0.0634), so these results do not establish the paper's strong manifold-alignment claim on this graph transfer task.
+
+Tracked evidence: [comparison report](experiments/roma-84359/COMPARISON.md), [performance chart](experiments/roma-84359/figures/performance.png), [Figure 3 PNG](experiments/roma-84359/figures/figure3-routing.png) / [PDF](experiments/roma-84359/figures/figure3-routing.pdf) / [SVG](experiments/roma-84359/figures/figure3-routing.svg), [all routing conditions](experiments/roma-84359/figures/routing-controls.png), [per-probe scores](experiments/roma-84359/scores.csv), [complete source-backed results](experiments/roma-84359/comparison.json), and [plot settings and diagnostics](experiments/roma-84359/figures/visualization.json). Raw source CLIP features are read in place; archived plot data contains node IDs, cluster assignments, learned routing weights and UMAP coordinates.
+
+Validation: nine CPU/CUDA tests passed, covering the manifold formula, self-exclusion with domain/node identity, live gate gradients with detached teacher routes, frozen non-router state, RNG-isolated label-free bank construction, complete paired-run validation and the existing inference/gradient invariants. Six-condition integration smoke test: job **84358**. Initial array 84355 stopped on an overly strict bitwise CUDA inference check and is excluded from results; the final array uses the corrected numerical check and exactly reused baseline reference embeddings. No environment packages were installed, and the upstream code tree was not edited.
