@@ -72,6 +72,7 @@ def main():
     parser.add_argument('--experts', type=int, default=8)
     parser.add_argument('--heads', type=int, default=4)
     parser.add_argument('--top-k', type=int, default=0, help='0 uses dense routing from paper equations; 2 matches upstream sparse routing')
+    parser.add_argument('--expert', choices=['mlp','attention'], default='mlp', help='MoE expert type: 2-layer MLP (paper) or single transformer attention head over the nodes of each graph')
     parser.add_argument('--dropout', type=float, default=.4)
     parser.add_argument('--mask-rate', type=float, default=.8)
     parser.add_argument('--gamma', type=float, default=2.)
@@ -102,7 +103,7 @@ def main():
     if len({g.x.shape[1] for g in graphs+[target]}) != 1:
         raise ValueError('all domains must use the same CLIP feature space')
     model_kwargs = dict(input_dim=graphs[0].x.shape[1], domains=args.pretrain, hidden=args.hidden,
-                        layers=args.layers, experts=args.experts, heads=args.heads, top_k=args.top_k,
+                        layers=args.layers, experts=args.experts, heads=args.heads, top_k=args.top_k, expert=args.expert,
                         dropout=args.dropout, mask_rate=args.mask_rate, gamma=args.gamma, lambda_spd=args.lambda_spd)
     model = UniGraph2(**model_kwargs).to(args.device)
     if args.standardize:

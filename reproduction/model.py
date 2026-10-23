@@ -4,25 +4,42 @@ from torch import nn
 from torch.nn import functional as F
 
 
+class AttentionHead(nn.Module):
+    """Single-head scaled dot-product self-attention over every node of the (sub)graph.
+    Q/K/V each map input_dim -> hidden, matching the MLP expert's parameter count."""
+    def __init__(self, input_dim, hidden):
+        super().__init__()
+        self.q, self.k, self.v = (nn.Linear(input_dim, hidden) for _ in range(3))
+
+    def forward(self, queries, context):
+        scores = self.q(queries) @ self.k(context).T / self.k.out_features ** .5
+        return scores.softmax(-1) @ self.v(context)
+
+
 class MoE(nn.Module):
-    def __init__(self, input_dim, hidden, experts=8, top_k=0):
+    def __init__(self, input_dim, hidden, experts=8, top_k=0, expert='mlp'):
         super().__init__()
         if not 0 <= top_k <= experts:
             raise ValueError('top_k must be between zero (dense) and num_experts')
-        self.top_k = top_k or experts
+        if expert not in ('mlp', 'attention'):
+            raise ValueError("expert must be 'mlp' or 'attention'")
+        self.top_k, self.hidden, self.attention = top_k or experts, hidden, expert == 'attention'
         self.gate = nn.Sequential(nn.Linear(input_dim, hidden), nn.GELU(), nn.Linear(hidden, experts))
         self.experts = nn.ModuleList([
+            AttentionHead(input_dim, hidden) if self.attention else
             nn.Sequential(nn.Linear(input_dim, hidden), nn.GELU(), nn.Linear(hidden, hidden))
             for _ in range(experts)])
 
     def forward(self, x):
         scores, indices = self.gate(x).topk(self.top_k, dim=-1)
         weights = scores.softmax(-1)
-        out = x.new_zeros(len(x), self.experts[0][-1].out_features)
+        out = x.new_zeros(len(x), self.hidden)
         for k, expert in enumerate(self.experts):
             rows, slots = (indices == k).nonzero(as_tuple=True)
             if rows.numel():
-                out.index_add_(0, rows, expert(x[rows]) * weights[rows, slots, None])
+                # Attention experts: routed nodes query, all nodes act as keys/values.
+                y = expert(x[rows], x) if self.attention else expert(x[rows])
+                out.index_add_(0, rows, y * weights[rows, slots, None])
         return out
 
 
@@ -59,7 +76,7 @@ class GATLayer(nn.Module):
 
 class UniGraph2(nn.Module):
     def __init__(self, input_dim, domains, hidden=1024, experts=8, layers=4,
-                 heads=4, dropout=.4, mask_rate=.8, gamma=2., lambda_spd=.1, top_k=0):
+                 heads=4, dropout=.4, mask_rate=.8, gamma=2., lambda_spd=.1, top_k=0, expert='mlp'):
         super().__init__()
         if not 0 < mask_rate < 1 or layers < 1 or gamma < 1 or lambda_spd < 0:
             raise ValueError('invalid model configuration')
@@ -69,7 +86,7 @@ class UniGraph2(nn.Module):
         self.register_buffer('feature_mean', torch.zeros(input_dim))
         self.register_buffer('feature_std', torch.ones(input_dim))
         self.mask_token = nn.Parameter(torch.zeros(input_dim))
-        self.moe = MoE(input_dim, hidden, experts, top_k)
+        self.moe = MoE(input_dim, hidden, experts, top_k, expert)
         self.gnn = nn.ModuleList([GATLayer(hidden, heads, dropout) for _ in range(layers)])
         self.decoders = nn.ModuleDict({d: nn.Sequential(nn.Linear(hidden, hidden), nn.GELU(),
                                                        nn.Linear(hidden, input_dim)) for d in domains})

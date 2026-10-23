@@ -1,4 +1,5 @@
 """Focused correctness checks for graph attention, masking, SPD and multimodal fusion."""
+import itertools
 import unittest
 import numpy as np
 import torch
@@ -52,9 +53,10 @@ class CoreTests(unittest.TestCase):
         torch.testing.assert_close(x,before)
 
     def test_inference_and_gradients(self):
-        for device in ['cpu']+(['cuda'] if torch.cuda.is_available() else []):
+        devices=['cpu']+(['cuda'] if torch.cuda.is_available() else [])
+        for device,expert,top_k in itertools.product(devices,['mlp','attention'],[0,1]):
             torch.manual_seed(0)
-            model=UniGraph2(6,['a','b'],hidden=8,experts=2,layers=2,heads=2,dropout=0).to(device)
+            model=UniGraph2(6,['a','b'],hidden=8,experts=2,layers=2,heads=2,dropout=0,top_k=top_k,expert=expert).to(device)
             x=torch.randn(3,6,device=device)
             edges=torch.tensor([[0,1,2,0,1],[0,1,2,1,0]],device=device)
             pairs=torch.tensor([[0,1],[1,0]],device=device)
