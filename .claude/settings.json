@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git -C \"$CLAUDE_PROJECT_DIR\" add -A && { git -C \"$CLAUDE_PROJECT_DIR\" diff --cached --quiet || git -C \"$CLAUDE_PROJECT_DIR\" commit -q -m \"Auto-commit: $(git -C \"$CLAUDE_PROJECT_DIR\" diff --cached --name-only | head -5 | paste -sd \" \")\" -m \"Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\"; }",
+            "statusMessage": "Auto-committing changes"
+          }
+        ]
+      }
+    ]
+  }
+}
