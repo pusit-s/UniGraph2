@@ -1,0 +1,2529 @@
+{
+  "status": "completed",
+  "encoder_seeds": [
+    0,
+    1,
+    2
+  ],
+  "probe_seeds": [
+    0,
+    1,
+    2
+  ],
+  "completed_runs": 135,
+  "datasets": [
+    {
+      "dataset": "ele-fashion",
+      "pretrain": [
+        "cloth-copurchase"
+      ],
+      "primary_metric": "accuracy",
+      "evaluation_protocol": {
+        "task": "node_classification",
+        "primary_metric": "accuracy",
+        "nodes": 4096
+      },
+      "summary": [
+        {
+          "architecture": "mlp",
+          "method": "none",
+          "label": "MLP experts",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 84.30497580104405,
+          "std_across_encoder_seeds": 0.5434366085477932,
+          "seed_means": [
+            83.76569151878357,
+            84.10041928291321,
+            85.04881660143535
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "task",
+          "label": "MLP experts / router task",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 84.16550623046027,
+          "std_across_encoder_seeds": 0.4735585142017118,
+          "seed_means": [
+            83.73779853185017,
+            83.93305738766988,
+            84.82566277186076
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -0.13946957058377052,
+            "population_std": 0.08211855453518672,
+            "per_seed": [
+              -0.027892986933395036,
+              -0.16736189524333156,
+              -0.22315382957458496
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "roma",
+          "label": "MLP experts / RoMA",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 84.51883064375984,
+          "std_across_encoder_seeds": 0.4733774803315888,
+          "seed_means": [
+            84.18410221735637,
+            84.18410221735637,
+            85.18828749656677
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.21385484271579477,
+            "population_std": 0.1464249472448429,
+            "per_seed": [
+              0.41841069857279933,
+              0.08368293444316066,
+              0.1394708951314243
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 0.35332441329956527,
+            "population_std": 0.0799849029013077,
+            "per_seed": [
+              0.44630368550619437,
+              0.2510448296864922,
+              0.36262472470600926
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "none",
+          "label": "Per-expert attention",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 80.59507409731548,
+          "std_across_encoder_seeds": 0.4232369188079372,
+          "seed_means": [
+            80.83682258923848,
+            80.94839652379353,
+            80.00000317891438
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "task",
+          "label": "Per-expert attention / router task",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 79.39563194910686,
+          "std_across_encoder_seeds": 3.0285502777557376,
+          "seed_means": [
+            81.33891224861145,
+            81.72942996025085,
+            75.11855363845825
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -1.1994421482086135,
+            "population_std": 2.6060616819404645,
+            "per_seed": [
+              0.5020896593729702,
+              0.7810334364573208,
+              -4.881449540456131
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "roma",
+          "label": "Per-expert attention / RoMA",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 78.60530151261224,
+          "std_across_encoder_seeds": 3.9865990522770463,
+          "seed_means": [
+            81.25523328781128,
+            81.58995906511943,
+            72.970712184906
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -1.9897725847032273,
+            "population_std": 3.564641967484267,
+            "per_seed": [
+              0.41841069857279933,
+              0.6415625413258965,
+              -7.029290994008377
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": -0.7903304364946138,
+            "population_std": 0.9601754374622522,
+            "per_seed": [
+              -0.0836789608001709,
+              -0.1394708951314243,
+              -2.147841453552246
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "none",
+          "label": "Shared attention + MLP",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 84.5374259683821,
+          "std_across_encoder_seeds": 0.3108927200658717,
+          "seed_means": [
+            84.88145271937053,
+            84.12831425666809,
+            84.60251092910767
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "task",
+          "label": "Shared attention + MLP / router task",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 84.50953165690105,
+          "std_across_encoder_seeds": 0.34864351234195656,
+          "seed_means": [
+            84.74198182423909,
+            84.01673833529155,
+            84.76987481117249
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": -0.027894311481053553,
+            "population_std": 0.1385372489027043,
+            "per_seed": [
+              -0.1394708951314385,
+              -0.11157592137654149,
+              0.16736388206481934
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "roma",
+          "label": "Shared attention + MLP / RoMA",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 84.63970422744751,
+          "std_across_encoder_seeds": 0.5505479471169084,
+          "seed_means": [
+            84.54672495524089,
+            84.01673833529155,
+            85.3556493918101
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": 0.10227825906541928,
+            "population_std": 0.4691577131696347,
+            "per_seed": [
+              -0.33472776412963867,
+              -0.11157592137654149,
+              0.753138462702438
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 0.13017257054647283,
+            "population_std": 0.3318746800847819,
+            "per_seed": [
+              -0.19525686899820016,
+              0.0,
+              0.5857745806376187
+            ]
+          }
+        }
+      ],
+      "references": [
+        {
+          "architecture": "mlp",
+          "representation": "CLIP",
+          "mean": 85.60669422149658,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            85.60669422149658,
+            85.60669422149658,
+            85.60669422149658
+          ]
+        },
+        {
+          "architecture": "mlp",
+          "representation": "NoPretrain",
+          "mean": 86.322644021776,
+          "population_std": 0.2281326419976828,
+          "encoder_seed_means": [
+            86.61088148752849,
+            86.05300188064575,
+            86.30404869715373
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "CLIP",
+          "mean": 85.60669422149658,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            85.60669422149658,
+            85.60669422149658,
+            85.60669422149658
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "NoPretrain",
+          "mean": 82.510464058982,
+          "population_std": 0.06832520762830163,
+          "encoder_seed_means": [
+            82.51046538352966,
+            82.59414434432983,
+            82.4267824490865
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "CLIP",
+          "mean": 85.60669422149658,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            85.60669422149658,
+            85.60669422149658,
+            85.60669422149658
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "NoPretrain",
+          "mean": 85.71827279196845,
+          "population_std": 0.2907765151812363,
+          "encoder_seed_means": [
+            85.32775640487671,
+            85.80195506413777,
+            86.02510690689087
+          ]
+        }
+      ],
+      "architecture_deltas": [
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "none",
+          "mean": 0.23245016733805338,
+          "population_std": 0.6539089382478869,
+          "per_seed": [
+            1.1157612005869595,
+            0.027894973754882812,
+            -0.44630567232768215
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "roma",
+          "mean": 0.12087358368767791,
+          "population_std": 0.21884899918254658,
+          "per_seed": [
+            0.3626227378845215,
+            -0.16736388206481934,
+            0.16736189524333156
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "none",
+          "mean": 3.9423518710666294,
+          "population_std": 0.5852556256610227,
+          "per_seed": [
+            4.044630130132049,
+            3.179917732874557,
+            4.602507750193283
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "roma",
+          "mean": 6.034402714835276,
+          "population_std": 4.504360711851687,
+          "per_seed": [
+            3.291491667429611,
+            2.426779270172119,
+            12.384937206904098
+          ]
+        }
+      ],
+      "split_sizes": {
+        "train": 2468,
+        "valid": 433,
+        "test": 1195
+      }
+    },
+    {
+      "dataset": "books-nc",
+      "pretrain": [
+        "cloth-copurchase"
+      ],
+      "primary_metric": "accuracy",
+      "evaluation_protocol": {
+        "task": "node_classification",
+        "primary_metric": "accuracy",
+        "nodes": 4096
+      },
+      "summary": [
+        {
+          "architecture": "mlp",
+          "method": "none",
+          "label": "MLP experts",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 66.62197311719258,
+          "std_across_encoder_seeds": 0.40689485982382967,
+          "seed_means": [
+            66.47894978523254,
+            67.17618902524312,
+            66.2107805411021
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "task",
+          "label": "MLP experts / router task",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 66.36274390750462,
+          "std_across_encoder_seeds": 0.6620859992934242,
+          "seed_means": [
+            67.28345553080241,
+            66.0498817761739,
+            65.75489441553752
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -0.25922920968797314,
+            "population_std": 0.8004228723986503,
+            "per_seed": [
+              0.8045057455698696,
+              -1.1263072490692139,
+              -0.4558861255645752
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "roma",
+          "label": "MLP experts / RoMA",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 65.37945999039545,
+          "std_across_encoder_seeds": 1.1052535955333225,
+          "seed_means": [
+            66.88120365142822,
+            65.00402490297954,
+            64.25315141677856
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -1.2425131267971448,
+            "population_std": 1.1663190421905076,
+            "per_seed": [
+              0.4022538661956787,
+              -2.172164122263581,
+              -1.9576291243235318
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": -0.9832839171091715,
+            "population_std": 0.4510408048993802,
+            "per_seed": [
+              -0.40225187937419093,
+              -1.0458568731943672,
+              -1.5017429987589566
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "none",
+          "label": "Per-expert attention",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 46.187540888786316,
+          "std_across_encoder_seeds": 5.7396532216540335,
+          "seed_means": [
+            38.428535064061485,
+            52.13194092114767,
+            48.0021466811498
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "task",
+          "label": "Per-expert attention / router task",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 43.058908979098,
+          "std_across_encoder_seeds": 2.8804775645957648,
+          "seed_means": [
+            43.1751141945521,
+            46.527220805486046,
+            39.47439193725586
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -3.128631909688316,
+            "population_std": 5.6950413843962195,
+            "per_seed": [
+              4.746579130490616,
+              -5.604720115661621,
+              -8.527754743893944
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "roma",
+          "label": "Per-expert attention / RoMA",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 49.6558513906267,
+          "std_across_encoder_seeds": 2.4986558503829857,
+          "seed_means": [
+            46.12496693929037,
+            51.30061705907186,
+            51.54197017351786
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 3.468310501840378,
+            "population_std": 3.481808922542411,
+            "per_seed": [
+              7.696431875228882,
+              -0.8313238620758057,
+              3.5398234923680576
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 6.596942411528694,
+            "population_std": 3.93930788991388,
+            "per_seed": [
+              2.9498527447382656,
+              4.773396253585815,
+              12.067578236262001
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "none",
+          "label": "Shared attention + MLP",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 67.13149481349522,
+          "std_across_encoder_seeds": 1.5340127707679403,
+          "seed_means": [
+            67.04210638999939,
+            69.05336777369182,
+            65.29901027679443
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "task",
+          "label": "Shared attention + MLP / router task",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 66.29123224152458,
+          "std_across_encoder_seeds": 1.304412997904088,
+          "seed_means": [
+            66.96165402730306,
+            67.44435628255208,
+            64.46768641471863
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": -0.8402625719706265,
+            "population_std": 0.6240636600475163,
+            "per_seed": [
+              -0.08045236269633449,
+              -1.6090114911397393,
+              -0.8313238620758057
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "roma",
+          "label": "Shared attention + MLP / RoMA",
+          "primary_metric": "accuracy",
+          "mean_test_score_percent": 66.72924160957336,
+          "std_across_encoder_seeds": 1.5290050700314017,
+          "seed_means": [
+            67.14937289555867,
+            68.35613052050273,
+            64.68222141265869
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": -0.40225320392184943,
+            "population_std": 0.36177869532595114,
+            "per_seed": [
+              0.10726650555928074,
+              -0.6972372531890869,
+              -0.6167888641357422
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 0.43800936804877705,
+            "population_std": 0.33518118500065897,
+            "per_seed": [
+              0.18771886825561523,
+              0.9117742379506524,
+              0.21453499794006348
+            ]
+          }
+        }
+      ],
+      "references": [
+        {
+          "architecture": "mlp",
+          "representation": "CLIP",
+          "mean": 60.28426090876261,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            60.28426090876261,
+            60.28426090876261,
+            60.28426090876261
+          ]
+        },
+        {
+          "architecture": "mlp",
+          "representation": "NoPretrain",
+          "mean": 66.87226427925958,
+          "population_std": 0.2988872379117241,
+          "encoder_seed_means": [
+            67.0421044031779,
+            67.12255477905273,
+            66.4521336555481
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "CLIP",
+          "mean": 60.28426090876261,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            60.28426090876261,
+            60.28426090876261,
+            60.28426090876261
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "NoPretrain",
+          "mean": 49.08375938733419,
+          "population_std": 3.3645843353243365,
+          "encoder_seed_means": [
+            45.91043293476105,
+            47.59989480177561,
+            53.740950425465904
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "CLIP",
+          "mean": 60.28426090876261,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            60.28426090876261,
+            60.28426090876261,
+            60.28426090876261
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "NoPretrain",
+          "mean": 65.88898102442424,
+          "population_std": 0.854779501996977,
+          "encoder_seed_means": [
+            66.90801978111267,
+            65.94261527061462,
+            64.81630802154541
+          ]
+        }
+      ],
+      "architecture_deltas": [
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "none",
+          "mean": 0.5095216963026274,
+          "population_std": 1.1392151323003468,
+          "per_seed": [
+            0.5631566047668457,
+            1.8771787484486993,
+            -0.9117702643076626
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "roma",
+          "mean": 1.3497816191779226,
+          "population_std": 1.4173798147145662,
+          "per_seed": [
+            0.26816924413044774,
+            3.3521056175231934,
+            0.42906999588012695
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "none",
+          "mean": 20.943953924708897,
+          "population_std": 5.425403917248533,
+          "per_seed": [
+            28.613571325937905,
+            16.92142685254415,
+            17.29686359564463
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "roma",
+          "mean": 17.073390218946667,
+          "population_std": 3.2187175069940825,
+          "per_seed": [
+            21.024405956268303,
+            17.05551346143087,
+            13.14025123914083
+          ]
+        }
+      ],
+      "split_sizes": {
+        "train": 2464,
+        "valid": 372,
+        "test": 1243
+      }
+    },
+    {
+      "dataset": "sports-copurchase",
+      "pretrain": [
+        "cloth-copurchase"
+      ],
+      "primary_metric": "mrr",
+      "evaluation_protocol": {
+        "task": "link_prediction",
+        "primary_metric": "mrr",
+        "nodes": 4096,
+        "split_seed": 1729,
+        "candidate_protocol": "fixed sampled non-neighbors within the node cohort; all known positives and self loops excluded",
+        "official_positive_splits": true,
+        "official_negative_candidates": false,
+        "undirected": true,
+        "cohort_counts": {
+          "train": {
+            "unique_within_cohort": 20728,
+            "overlap_with_earlier_splits_removed": 0,
+            "insufficient_non_neighbors_removed": 0,
+            "eligible_positives": 20728,
+            "selected_positives": 4096,
+            "negatives_per_positive": 1
+          },
+          "valid": {
+            "unique_within_cohort": 2482,
+            "overlap_with_earlier_splits_removed": 961,
+            "insufficient_non_neighbors_removed": 0,
+            "eligible_positives": 1521,
+            "selected_positives": 1024,
+            "negatives_per_positive": 100
+          },
+          "test": {
+            "unique_within_cohort": 2155,
+            "overlap_with_earlier_splits_removed": 1072,
+            "insufficient_non_neighbors_removed": 0,
+            "eligible_positives": 1083,
+            "selected_positives": 1024,
+            "negatives_per_positive": 100
+          }
+        },
+        "split_sha256": "631e8c2a700758b5c1cdc468b4a0bfe649e0d67b1472f974ec5fb7942f15d779",
+        "head": "linear classifier on Hadamard products of unit-normalized frozen embeddings",
+        "ranking_ties": "average optimistic and pessimistic rank, as in the MM-Graph evaluator"
+      },
+      "summary": [
+        {
+          "architecture": "mlp",
+          "method": "none",
+          "label": "MLP experts",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 80.60749504301282,
+          "std_across_encoder_seeds": 1.2716052106589766,
+          "seed_means": [
+            81.8969984849294,
+            78.87722253799438,
+            81.0482641061147
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "task",
+          "label": "MLP experts / router task",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 80.62850965393915,
+          "std_across_encoder_seeds": 1.3175128619140963,
+          "seed_means": [
+            81.80453379948933,
+            78.7889043490092,
+            81.2920908133189
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.02101461092631496,
+            "population_std": 0.1575610380011911,
+            "per_seed": [
+              -0.09246468544006348,
+              -0.08831818898518407,
+              0.24382670720419242
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "roma",
+          "label": "MLP experts / RoMA",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 80.7239168220096,
+          "std_across_encoder_seeds": 1.3367880302892619,
+          "seed_means": [
+            81.8228542804718,
+            78.84224851926167,
+            81.50664766629536
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.11642177899678548,
+            "population_std": 0.24233168826392837,
+            "per_seed": [
+              -0.07414420445759617,
+              -0.03497401873271144,
+              0.45838356018066406
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 0.09540716807047052,
+            "population_std": 0.08545622763504906,
+            "per_seed": [
+              0.018320480982467302,
+              0.05334417025247262,
+              0.21455685297647165
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "none",
+          "label": "Per-expert attention",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 49.03849595122867,
+          "std_across_encoder_seeds": 1.6108162198595386,
+          "seed_means": [
+            51.02215806643168,
+            47.07666138807932,
+            49.01666839917501
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "task",
+          "label": "Per-expert attention / router task",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 44.993471437030365,
+          "std_across_encoder_seeds": 6.3969110052623925,
+          "seed_means": [
+            50.26212930679321,
+            35.99034051100413,
+            48.72794449329376
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -4.045024514198303,
+            "population_std": 4.9826648103661215,
+            "per_seed": [
+              -0.7600287596384661,
+              -11.086320877075195,
+              -0.2887239058812483
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "roma",
+          "label": "Per-expert attention / RoMA",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 40.23873541090223,
+          "std_across_encoder_seeds": 9.298644738288202,
+          "seed_means": [
+            27.40185757478078,
+            44.18571392695109,
+            49.12863473097483
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -8.799760540326437,
+            "population_std": 10.55116663845102,
+            "per_seed": [
+              -23.620300491650898,
+              -2.890947461128235,
+              0.1119663317998203
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": -4.754736026128135,
+            "population_std": 13.19209583703246,
+            "per_seed": [
+              -22.860271732012432,
+              8.19537341594696,
+              0.4006902376810686
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "none",
+          "label": "Shared attention + MLP",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 82.0807245042589,
+          "std_across_encoder_seeds": 0.16102596287452778,
+          "seed_means": [
+            82.2512408097585,
+            82.12618430455525,
+            81.86474839846294
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "task",
+          "label": "Shared attention + MLP / router task",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 81.74705571598476,
+          "std_across_encoder_seeds": 0.21661253441050404,
+          "seed_means": [
+            81.59455259641011,
+            82.05339113871257,
+            81.59322341283162
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": -0.3336687882741292,
+            "population_std": 0.24239051931487796,
+            "per_seed": [
+              -0.6566882133483887,
+              -0.07279316584268258,
+              -0.27152498563131644
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "roma",
+          "label": "Shared attention + MLP / RoMA",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 81.82782729466756,
+          "std_across_encoder_seeds": 0.24413894612899087,
+          "seed_means": [
+            81.5623939037323,
+            82.15176264444987,
+            81.76932533582051
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84392"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": -0.25289720959133416,
+            "population_std": 0.3121959194909736,
+            "per_seed": [
+              -0.6888469060261997,
+              0.025578339894622104,
+              -0.09542306264242484
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 0.0807715786827951,
+            "population_std": 0.08592802834819208,
+            "per_seed": [
+              -0.03215869267781102,
+              0.09837150573730469,
+              0.1761019229888916
+            ]
+          }
+        }
+      ],
+      "references": [
+        {
+          "architecture": "mlp",
+          "representation": "CLIP",
+          "mean": 62.54976987838745,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            62.54976987838745,
+            62.54976987838745,
+            62.54976987838745
+          ]
+        },
+        {
+          "architecture": "mlp",
+          "representation": "NoPretrain",
+          "mean": 82.42850833468968,
+          "population_std": 0.412915688528063,
+          "encoder_seed_means": [
+            81.85486197471619,
+            82.62074589729309,
+            82.80991713205974
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "CLIP",
+          "mean": 62.54976987838745,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            62.54976987838745,
+            62.54976987838745,
+            62.54976987838745
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "NoPretrain",
+          "mean": 49.2375546031528,
+          "population_std": 1.1587026971140082,
+          "encoder_seed_means": [
+            50.87111989657084,
+            48.30903013547262,
+            48.532513777414955
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "CLIP",
+          "mean": 62.54976987838745,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            62.54976987838745,
+            62.54976987838745,
+            62.54976987838745
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "NoPretrain",
+          "mean": 83.18760130140515,
+          "population_std": 0.2102398772022481,
+          "encoder_seed_means": [
+            83.3417534828186,
+            83.33070476849873,
+            82.89034565289815
+          ]
+        }
+      ],
+      "architecture_deltas": [
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "none",
+          "mean": 1.4732294612460681,
+          "population_std": 1.2697337842340415,
+          "per_seed": [
+            0.35424232482910156,
+            3.2489617665608677,
+            0.8164842923482354
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "roma",
+          "mean": 1.1039104726579485,
+          "population_std": 1.5741524614647913,
+          "per_seed": [
+            -0.26046037673950195,
+            3.309514125188201,
+            0.2626776695251465
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "none",
+          "mean": 33.04222855303022,
+          "population_std": 1.5657183707685254,
+          "per_seed": [
+            31.22908274332682,
+            35.04952291647593,
+            32.848079999287926
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "roma",
+          "mean": 41.58909188376533,
+          "population_std": 9.151348583161651,
+          "per_seed": [
+            54.16053632895152,
+            37.966048717498786,
+            32.64069060484568
+          ]
+        }
+      ],
+      "split_sizes": {
+        "train": 4096,
+        "valid": 1024,
+        "test": 1024
+      }
+    },
+    {
+      "dataset": "cloth-copurchase",
+      "pretrain": [
+        "sports-copurchase"
+      ],
+      "primary_metric": "mrr",
+      "evaluation_protocol": {
+        "task": "link_prediction",
+        "primary_metric": "mrr",
+        "nodes": 4096,
+        "split_seed": 1729,
+        "candidate_protocol": "fixed sampled non-neighbors within the node cohort; all known positives and self loops excluded",
+        "official_positive_splits": true,
+        "official_negative_candidates": false,
+        "undirected": true,
+        "cohort_counts": {
+          "train": {
+            "unique_within_cohort": 30022,
+            "overlap_with_earlier_splits_removed": 0,
+            "insufficient_non_neighbors_removed": 0,
+            "eligible_positives": 30022,
+            "selected_positives": 4096,
+            "negatives_per_positive": 1
+          },
+          "valid": {
+            "unique_within_cohort": 3767,
+            "overlap_with_earlier_splits_removed": 1337,
+            "insufficient_non_neighbors_removed": 0,
+            "eligible_positives": 2430,
+            "selected_positives": 1024,
+            "negatives_per_positive": 100
+          },
+          "test": {
+            "unique_within_cohort": 3368,
+            "overlap_with_earlier_splits_removed": 1570,
+            "insufficient_non_neighbors_removed": 0,
+            "eligible_positives": 1798,
+            "selected_positives": 1024,
+            "negatives_per_positive": 100
+          }
+        },
+        "split_sha256": "491a9c29db1855f525d24e3b25aaeb3e5af6e99a714051452b99d120c8875238",
+        "head": "linear classifier on Hadamard products of unit-normalized frozen embeddings",
+        "ranking_ties": "average optimistic and pessimistic rank, as in the MM-Graph evaluator"
+      },
+      "summary": [
+        {
+          "architecture": "mlp",
+          "method": "none",
+          "label": "MLP experts",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 65.65226316452026,
+          "std_across_encoder_seeds": 1.0338980619745752,
+          "seed_means": [
+            65.84992011388142,
+            66.80807272593181,
+            64.29879665374756
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "task",
+          "label": "MLP experts / router task",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 65.07945325639513,
+          "std_across_encoder_seeds": 0.8247936558027297,
+          "seed_means": [
+            65.1491363843282,
+            66.05296929677327,
+            64.03625408808391
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -0.5728099081251372,
+            "population_std": 0.22051005311910818,
+            "per_seed": [
+              -0.7007837295532227,
+              -0.7551034291585381,
+              -0.26254256566365086
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "roma",
+          "label": "MLP experts / RoMA",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 65.45591288142734,
+          "std_across_encoder_seeds": 1.1494305313967392,
+          "seed_means": [
+            65.92543919881184,
+            66.56890511512756,
+            63.87339433034261
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -0.19635028309292343,
+            "population_std": 0.20672938348869763,
+            "per_seed": [
+              0.07551908493041992,
+              -0.23916761080424465,
+              -0.42540232340494555
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 0.3764596250322138,
+            "population_std": 0.3958929069371781,
+            "per_seed": [
+              0.7763028144836426,
+              0.5159358183542935,
+              -0.1628597577412947
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "none",
+          "label": "Per-expert attention",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 47.69878519905938,
+          "std_across_encoder_seeds": 2.038625698867367,
+          "seed_means": [
+            50.50618449846903,
+            45.72686553001404,
+            46.86330556869507
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "task",
+          "label": "Per-expert attention / router task",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 46.58348858356476,
+          "std_across_encoder_seeds": 2.4699877626254665,
+          "seed_means": [
+            49.97948805491129,
+            45.59376140435537,
+            44.17721629142761
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -1.1152966154946213,
+            "population_std": 1.1222806891584152,
+            "per_seed": [
+              -0.5266964435577393,
+              -0.1331041256586687,
+              -2.686089277267456
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "roma",
+          "label": "Per-expert attention / RoMA",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 47.768533892101715,
+          "std_across_encoder_seeds": 1.1361287492296728,
+          "seed_means": [
+            49.3751605351766,
+            46.949538588523865,
+            46.980902552604675
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.06974869304233285,
+            "population_std": 0.961488260221066,
+            "per_seed": [
+              -1.131023963292435,
+              1.2226730585098267,
+              0.11759698390960693
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 1.1850453085369541,
+            "population_std": 1.3965437128231046,
+            "per_seed": [
+              -0.6043275197346958,
+              1.3557771841684954,
+              2.803686261177063
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "none",
+          "label": "Shared attention + MLP",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 65.38122097651164,
+          "std_across_encoder_seeds": 0.8005880554011658,
+          "seed_means": [
+            64.73853985468547,
+            66.5097991625468,
+            64.89532391230266
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "task",
+          "label": "Shared attention + MLP / router task",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 65.26314814885457,
+          "std_across_encoder_seeds": 0.9062368487914187,
+          "seed_means": [
+            64.88870183626811,
+            66.51185154914856,
+            64.38889106114705
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": -0.11807282765706854,
+            "population_std": 0.28119002343633503,
+            "per_seed": [
+              0.1501619815826416,
+              0.0020523866017612136,
+              -0.5064328511556084
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "roma",
+          "label": "Shared attention + MLP / RoMA",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 65.54099983639186,
+          "std_across_encoder_seeds": 0.9499246307969932,
+          "seed_means": [
+            64.61975177129109,
+            66.84838930765788,
+            65.15485843022664
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": 0.15977885988022913,
+            "population_std": 0.19960311363888283,
+            "per_seed": [
+              -0.11878808339437796,
+              0.338590145111084,
+              0.2595345179239814
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 0.27785168753729766,
+            "population_std": 0.4245362685905483,
+            "per_seed": [
+              -0.26895006497701957,
+              0.33653775850932277,
+              0.7659673690795898
+            ]
+          }
+        }
+      ],
+      "references": [
+        {
+          "architecture": "mlp",
+          "representation": "CLIP",
+          "mean": 53.365019957224526,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            53.365019957224526,
+            53.365019957224526,
+            53.365019957224526
+          ]
+        },
+        {
+          "architecture": "mlp",
+          "representation": "NoPretrain",
+          "mean": 65.11305371920268,
+          "population_std": 0.22986738993836622,
+          "encoder_seed_means": [
+            65.13131062189738,
+            65.38500984509785,
+            64.8228406906128
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "CLIP",
+          "mean": 53.365019957224526,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            53.365019957224526,
+            53.365019957224526,
+            53.365019957224526
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "NoPretrain",
+          "mean": 49.367463257577676,
+          "population_std": 1.7462611797411187,
+          "encoder_seed_means": [
+            51.222882668177284,
+            49.85120892524719,
+            47.02829817930857
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "CLIP",
+          "mean": 53.365019957224526,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            53.365019957224526,
+            53.365019957224526,
+            53.365019957224526
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "NoPretrain",
+          "mean": 65.58045546213786,
+          "population_std": 0.37111619163102144,
+          "encoder_seed_means": [
+            65.80567757288615,
+            65.87838927904765,
+            65.05729953447978
+          ]
+        }
+      ],
+      "architecture_deltas": [
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "none",
+          "mean": -0.27104218800862157,
+          "population_std": 0.6975161566354854,
+          "per_seed": [
+            -1.111380259195954,
+            -0.29827356338500977,
+            0.5965272585550991
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "roma",
+          "mean": 0.085086954964531,
+          "population_std": 1.0651074972095933,
+          "per_seed": [
+            -1.305687427520752,
+            0.27948419253031886,
+            1.281464099884026
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "none",
+          "mean": 17.682435777452262,
+          "population_std": 2.6856625397912075,
+          "per_seed": [
+            14.232355356216438,
+            20.78293363253276,
+            18.03201834360759
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "roma",
+          "mean": 17.772465944290158,
+          "population_std": 1.9211851305456176,
+          "per_seed": [
+            15.244591236114495,
+            19.898850719134018,
+            18.173955877621964
+          ]
+        }
+      ],
+      "split_sizes": {
+        "train": 4096,
+        "valid": 1024,
+        "test": 1024
+      }
+    },
+    {
+      "dataset": "books-lp",
+      "pretrain": [
+        "cloth-copurchase"
+      ],
+      "primary_metric": "mrr",
+      "evaluation_protocol": {
+        "task": "link_prediction",
+        "primary_metric": "mrr",
+        "nodes": 4096,
+        "split_seed": 1729,
+        "candidate_protocol": "fixed sampled non-neighbors within the node cohort; all known positives and self loops excluded",
+        "official_positive_splits": true,
+        "official_negative_candidates": false,
+        "undirected": true,
+        "cohort_counts": {
+          "train": {
+            "unique_within_cohort": 5771,
+            "overlap_with_earlier_splits_removed": 0,
+            "insufficient_non_neighbors_removed": 0,
+            "eligible_positives": 5771,
+            "selected_positives": 4096,
+            "negatives_per_positive": 1
+          },
+          "valid": {
+            "unique_within_cohort": 407,
+            "overlap_with_earlier_splits_removed": 80,
+            "insufficient_non_neighbors_removed": 0,
+            "eligible_positives": 327,
+            "selected_positives": 327,
+            "negatives_per_positive": 100
+          },
+          "test": {
+            "unique_within_cohort": 1114,
+            "overlap_with_earlier_splits_removed": 228,
+            "insufficient_non_neighbors_removed": 0,
+            "eligible_positives": 886,
+            "selected_positives": 886,
+            "negatives_per_positive": 100
+          }
+        },
+        "split_sha256": "69aaa100fb80927da221d9aa63359ba7f93297176de867b53e38dd0637659833",
+        "head": "linear classifier on Hadamard products of unit-normalized frozen embeddings",
+        "ranking_ties": "average optimistic and pessimistic rank, as in the MM-Graph evaluator"
+      },
+      "summary": [
+        {
+          "architecture": "mlp",
+          "method": "none",
+          "label": "MLP experts",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 15.510683341158762,
+          "std_across_encoder_seeds": 2.754471837119624,
+          "seed_means": [
+            19.21818107366562,
+            12.621792902549108,
+            14.692076047261557
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "task",
+          "label": "MLP experts / router task",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 15.620378073718813,
+          "std_across_encoder_seeds": 2.720063147613871,
+          "seed_means": [
+            19.464778403441112,
+            13.581752528746923,
+            13.814603288968405
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.1096947325600522,
+            "population_std": 0.7563492062697362,
+            "per_seed": [
+              0.24659732977549353,
+              0.9599596261978149,
+              -0.8774727582931519
+            ]
+          }
+        },
+        {
+          "architecture": "mlp",
+          "method": "roma",
+          "label": "MLP experts / RoMA",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 15.600638091564178,
+          "std_across_encoder_seeds": 2.333746701353757,
+          "seed_means": [
+            18.850817779699963,
+            13.478748997052511,
+            14.472347497940063
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21021705,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.08995475040541774,
+            "population_std": 0.5456905721759805,
+            "per_seed": [
+              -0.36736329396565637,
+              0.8569560945034027,
+              -0.2197285493214931
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": -0.01973998215463446,
+            "population_std": 0.5224990650057028,
+            "per_seed": [
+              -0.6139606237411499,
+              -0.10300353169441223,
+              0.6577442089716588
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "none",
+          "label": "Per-expert attention",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 11.702331155538559,
+          "std_across_encoder_seeds": 3.477598474403033,
+          "seed_means": [
+            7.946484784285228,
+            10.830572495857874,
+            16.329936186472576
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "task",
+          "label": "Per-expert attention / router task",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 11.048311284846728,
+          "std_across_encoder_seeds": 4.194127024129296,
+          "seed_means": [
+            6.465168421467145,
+            10.079184422890345,
+            16.600581010182697
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -0.6540198706918302,
+            "population_std": 0.7185413116799568,
+            "per_seed": [
+              -1.4813163628180828,
+              -0.7513880729675293,
+              0.27064482371012133
+            ]
+          }
+        },
+        {
+          "architecture": "attention",
+          "method": "roma",
+          "label": "Per-expert attention / RoMA",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 11.110904647244347,
+          "std_across_encoder_seeds": 2.916487839653296,
+          "seed_means": [
+            9.261292467514673,
+            8.843054622411728,
+            15.22836685180664
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 21029897,
+            "router": 533512,
+            "shared_attention": 0
+          },
+          "attention_heads": null,
+          "paired_delta_vs_baseline": {
+            "mean": -0.591426508294212,
+            "population_std": 1.3955937322019583,
+            "per_seed": [
+              1.3148076832294455,
+              -1.987517873446146,
+              -1.1015693346659354
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": 0.06259336239761826,
+            "population_std": 1.9336963286165605,
+            "per_seed": [
+              2.7961240460475283,
+              -1.2361298004786168,
+              -1.3722141583760568
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "none",
+          "label": "Shared attention + MLP",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 19.236607518461014,
+          "std_across_encoder_seeds": 1.4955560065875264,
+          "seed_means": [
+            21.331903338432312,
+            17.939293384552002,
+            18.43862583239873
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0,
+            "population_std": 0.0,
+            "per_seed": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "task",
+          "label": "Shared attention + MLP / router task",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 19.30932104587555,
+          "std_across_encoder_seeds": 1.2664096205717832,
+          "seed_means": [
+            21.100177864233654,
+            18.431609372297924,
+            18.396175901095074
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": 0.0727135274145354,
+            "population_std": 0.3066006918035943,
+            "per_seed": [
+              -0.23172547419865808,
+              0.492315987745922,
+              -0.042449931303657706
+            ]
+          }
+        },
+        {
+          "architecture": "shared",
+          "method": "roma",
+          "label": "Shared attention + MLP / RoMA",
+          "primary_metric": "mrr",
+          "mean_test_score_percent": 19.107478029198116,
+          "std_across_encoder_seeds": 1.2138985982903585,
+          "seed_means": [
+            20.815801123778026,
+            18.106521169344585,
+            18.40011179447174
+          ],
+          "job_ids": [
+            "84394",
+            "84395",
+            "84396"
+          ],
+          "parameter_counts": {
+            "total": 22073353,
+            "router": 533512,
+            "shared_attention": 1051648
+          },
+          "attention_heads": 4,
+          "paired_delta_vs_baseline": {
+            "mean": -0.12912948926289758,
+            "population_std": 0.2862322391015404,
+            "per_seed": [
+              -0.5161022146542855,
+              0.16722778479258338,
+              -0.038514037926990596
+            ]
+          },
+          "paired_delta_vs_router_task": {
+            "mean": -0.20184301667743298,
+            "population_std": 0.14645380537212796,
+            "per_seed": [
+              -0.28437674045562744,
+              -0.3250882029533386,
+              0.00393589337666711
+            ]
+          }
+        }
+      ],
+      "references": [
+        {
+          "architecture": "mlp",
+          "representation": "CLIP",
+          "mean": 5.113414178291957,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            5.113414178291957,
+            5.113414178291957,
+            5.113414178291957
+          ]
+        },
+        {
+          "architecture": "mlp",
+          "representation": "NoPretrain",
+          "mean": 20.81442740228441,
+          "population_std": 0.24233036550835751,
+          "encoder_seed_means": [
+            20.926908155282337,
+            21.038538714249928,
+            20.477835337320965
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "CLIP",
+          "mean": 5.113414178291957,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            5.113414178291957,
+            5.113414178291957,
+            5.113414178291957
+          ]
+        },
+        {
+          "architecture": "attention",
+          "representation": "NoPretrain",
+          "mean": 12.64200939072503,
+          "population_std": 2.1470776415373862,
+          "encoder_seed_means": [
+            11.39500563343366,
+            10.8678770562013,
+            15.66314548254013
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "CLIP",
+          "mean": 5.113414178291957,
+          "population_std": 0.0,
+          "encoder_seed_means": [
+            5.113414178291957,
+            5.113414178291957,
+            5.113414178291957
+          ]
+        },
+        {
+          "architecture": "shared",
+          "representation": "NoPretrain",
+          "mean": 20.165563623110454,
+          "population_std": 0.25027370311603825,
+          "encoder_seed_means": [
+            19.83402967453003,
+            20.22400250037511,
+            20.43865869442622
+          ]
+        }
+      ],
+      "architecture_deltas": [
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "none",
+          "mean": 3.725924177302254,
+          "population_std": 1.308018291942232,
+          "per_seed": [
+            2.113722264766693,
+            5.3175004820028935,
+            3.7465497851371747
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "mlp",
+          "method": "roma",
+          "mean": 3.5068399376339383,
+          "population_std": 1.127088897070809,
+          "per_seed": [
+            1.964983344078064,
+            4.627772172292074,
+            3.9277642965316772
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "none",
+          "mean": 7.534276362922455,
+          "population_std": 4.6135291490434716,
+          "per_seed": [
+            13.385418554147083,
+            7.108720888694128,
+            2.1086896459261553
+          ]
+        },
+        {
+          "candidate": "shared",
+          "reference": "attention",
+          "method": "roma",
+          "mean": 7.9965733819537705,
+          "population_std": 3.5375552375529953,
+          "per_seed": [
+            11.554508656263353,
+            9.263466546932857,
+            3.1717449426651
+          ]
+        }
+      ],
+      "split_sizes": {
+        "train": 4096,
+        "valid": 327,
+        "test": 886
+      }
+    }
+  ],
+  "download_manifest": {
+    "status": "completed",
+    "repository": "mm-graph-org/mm-graph",
+    "revision": "c707a3203b77a153f11370a05d2a9be6571f7670",
+    "domains": [
+      "books-nc",
+      "books-lp",
+      "ele-fashion",
+      "sports-copurchase",
+      "cloth-copurchase"
+    ],
+    "files": [
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-lp/clip_feat.pt",
+        "bytes": 2607112945,
+        "sha256": "f00a6d5010df9e7097b5a28db651c86401c568acd96b10085da90b7bf9bcb817",
+        "action": "downloaded"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-lp/lp-edge-split.pt",
+        "bytes": 2828861750,
+        "sha256": "36e3da17b5a6bd711721e5f00061bf725f9603acf3f1ec410a4895a5eadd6b94",
+        "action": "downloaded"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-nc/clip_feat.pt",
+        "bytes": 2806964977,
+        "sha256": "188b106a6f0c93e8da04d44ae16dfea874004966d7827e2b5a96d9f0793a4882",
+        "action": "downloaded"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-nc/labels-w-missing.pt",
+        "bytes": 1372417,
+        "sha256": "799b70a45b542583a21f1b699ff79a61f915837ac812eb2a9e6d70f01030c6d8",
+        "action": "downloaded"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-nc/nc_edges-nodeid.pt",
+        "bytes": 120771711,
+        "sha256": "06fdeba1a78e969512eab1572e6f87faeab2288fb741fd5ad586da5d4fa7e3ae",
+        "action": "downloaded"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-nc/split.pt",
+        "bytes": 3261291,
+        "sha256": "342cf47b9d6d01d22bc2e36c3e2f3671facaa61f3126358f0ca234314871077d",
+        "action": "downloaded"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/cloth-copurchase/clip_feat.pt",
+        "bytes": 515437297,
+        "sha256": "625fe7cb157d1814edaef66e253991ff6ad6c98ec33846b7270a46b949f58233",
+        "action": "verified existing"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/cloth-copurchase/lp-edge-split.pt",
+        "bytes": 281258031,
+        "sha256": "b0a0866c3595b1c4e676db7805b91ccd283ebdda71a4038f37ac9b6593964697",
+        "action": "verified existing"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/ele-fashion/clip_feat.pt",
+        "bytes": 400450289,
+        "sha256": "b2bd3cc6d9c4c2581a70567ee282580c44e486f0e55a83e62abf8935116a86c6",
+        "action": "verified existing"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/ele-fashion/labels-w-missing.pt",
+        "bytes": 196161,
+        "sha256": "888e80c154a18d61a6b8f75ed2f02f0cb9440613e631810432362857b6a33065",
+        "action": "verified existing"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/ele-fashion/nc_edges-nodeid.pt",
+        "bytes": 2923007,
+        "sha256": "6c732c72ea8e1c8e2a5ae1a53a81a80d0b122ea8bb2475801ed20776f3fdcff2",
+        "action": "verified existing"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/ele-fashion/split.pt",
+        "bytes": 358187,
+        "sha256": "e48e74afd502df5bc5e4d638e611fc4fbfdecee461aa920f3f47a6446826c52f",
+        "action": "verified existing"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/sports-copurchase/clip_feat.pt",
+        "bytes": 205824753,
+        "sha256": "b2cb0c0184c5de2b092d67cc44abca9f264223aa23ac4ef05816d661f9510f01",
+        "action": "verified existing"
+      },
+      {
+        "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/sports-copurchase/lp-edge-split.pt",
+        "bytes": 106593135,
+        "sha256": "6f5ffeb99f1aca5ea05671c6a86e5ee01a33a3673b6c3f0a24c6d482f4fa710a",
+        "action": "verified existing"
+      }
+    ],
+    "unsupported_release_folders": {
+      "mm-codex-s": "Knowledge-graph triples are supplied without cached CLIP node features.",
+      "mm-codex-m": "Knowledge-graph triples are supplied without cached CLIP node features."
+    }
+  },
+  "scope": "five CLIP-ready multimodal graphs; bounded cohorts; accuracy and sampled MRR are not pooled",
+  "architecture_sequence": "node features -> shared multihead self-attention -> router -> selected MLP experts -> GAT",
+  "attention_heads": 4,
+  "top_k": 0
+}

@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "completed_runs": 135,
+  "unique_probe_rows": 1215,
+  "link_candidate_hashes_verified": 81,
+  "checks": [
+    "complete three-representation and three-probe records",
+    "target held out from pretraining",
+    "finite in-range metrics",
+    "independent mean/population-SD recalculation",
+    "validation-selected epoch bounds",
+    "actual saved LP candidate hashes",
+    "byte-identical archived exports"
+  ]
+}

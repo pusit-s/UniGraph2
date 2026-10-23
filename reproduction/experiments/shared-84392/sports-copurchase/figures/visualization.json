@@ -1,0 +1,86 @@
+{
+  "encoder_seed": 0,
+  "sampling_seed": 42,
+  "nodes": 1500,
+  "top_k": 0,
+  "clip_source": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/sports-copurchase/clip_feat.pt",
+  "cluster_method": "KMeans on unit-normalized raw CLIP, four clusters, n_init=10; no labels",
+  "cluster_sizes": [
+    641,
+    302,
+    493,
+    64
+  ],
+  "umap": {
+    "n_neighbors": 15,
+    "min_dist": 0.1,
+    "metric": "euclidean",
+    "random_state": 42,
+    "n_jobs": 1,
+    "n_components": 2
+  },
+  "metrics": {
+    "mlp-none": {
+      "semantic_knn_overlap_at_15": 0.1097777777777778,
+      "routing_silhouette_of_clip_clusters": 0.010872241109609604,
+      "mean_expert_probability_std": 0.02609940618276596,
+      "effective_rank": 6.155797481536865
+    },
+    "mlp-task": {
+      "semantic_knn_overlap_at_15": 0.11804444444444444,
+      "routing_silhouette_of_clip_clusters": 0.01569443941116333,
+      "mean_expert_probability_std": 0.029908331111073494,
+      "effective_rank": 6.043735027313232
+    },
+    "mlp-roma": {
+      "semantic_knn_overlap_at_15": 0.11035555555555555,
+      "routing_silhouette_of_clip_clusters": 0.016208479180932045,
+      "mean_expert_probability_std": 0.023393742740154266,
+      "effective_rank": 6.326282978057861
+    },
+    "attention-none": {
+      "semantic_knn_overlap_at_15": 0.11106666666666666,
+      "routing_silhouette_of_clip_clusters": 0.012125508859753609,
+      "mean_expert_probability_std": 0.0256832093000412,
+      "effective_rank": 6.396059513092041
+    },
+    "attention-task": {
+      "semantic_knn_overlap_at_15": 0.11822222222222221,
+      "routing_silhouette_of_clip_clusters": 0.0188188124448061,
+      "mean_expert_probability_std": 0.028614094480872154,
+      "effective_rank": 6.121772289276123
+    },
+    "attention-roma": {
+      "semantic_knn_overlap_at_15": 0.10933333333333334,
+      "routing_silhouette_of_clip_clusters": 0.015371433459222317,
+      "mean_expert_probability_std": 0.022392405197024345,
+      "effective_rank": 6.501986026763916
+    },
+    "shared-none": {
+      "semantic_knn_overlap_at_15": 0.08595555555555556,
+      "routing_silhouette_of_clip_clusters": -0.02808256447315216,
+      "mean_expert_probability_std": 0.020491674542427063,
+      "effective_rank": 6.634986400604248
+    },
+    "shared-task": {
+      "semantic_knn_overlap_at_15": 0.08853333333333332,
+      "routing_silhouette_of_clip_clusters": -0.011559771373867989,
+      "mean_expert_probability_std": 0.021634813398122787,
+      "effective_rank": 6.72963285446167
+    },
+    "shared-roma": {
+      "semantic_knn_overlap_at_15": 0.08893333333333332,
+      "routing_silhouette_of_clip_clusters": -0.018043899908661842,
+      "mean_expert_probability_std": 0.019797267392277718,
+      "effective_rank": 6.534215927124023
+    }
+  },
+  "versions": {
+    "numpy": "2.2.6",
+    "torch": "2.5.1",
+    "sklearn": "1.7.2",
+    "matplotlib": "3.10.9",
+    "umap-learn": "0.5.12"
+  },
+  "note": "Independent layouts; alignment diagnostics use original spaces. Selected nodes and seed are never chosen for test performance or apparent cluster separation."
+}

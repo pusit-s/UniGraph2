@@ -1,0 +1,102 @@
+{
+  "status": "completed",
+  "repository": "mm-graph-org/mm-graph",
+  "revision": "c707a3203b77a153f11370a05d2a9be6571f7670",
+  "domains": [
+    "books-nc",
+    "books-lp",
+    "ele-fashion",
+    "sports-copurchase",
+    "cloth-copurchase"
+  ],
+  "files": [
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-lp/clip_feat.pt",
+      "bytes": 2607112945,
+      "sha256": "f00a6d5010df9e7097b5a28db651c86401c568acd96b10085da90b7bf9bcb817",
+      "action": "downloaded"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-lp/lp-edge-split.pt",
+      "bytes": 2828861750,
+      "sha256": "36e3da17b5a6bd711721e5f00061bf725f9603acf3f1ec410a4895a5eadd6b94",
+      "action": "downloaded"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-nc/clip_feat.pt",
+      "bytes": 2806964977,
+      "sha256": "188b106a6f0c93e8da04d44ae16dfea874004966d7827e2b5a96d9f0793a4882",
+      "action": "downloaded"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-nc/labels-w-missing.pt",
+      "bytes": 1372417,
+      "sha256": "799b70a45b542583a21f1b699ff79a61f915837ac812eb2a9e6d70f01030c6d8",
+      "action": "downloaded"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-nc/nc_edges-nodeid.pt",
+      "bytes": 120771711,
+      "sha256": "06fdeba1a78e969512eab1572e6f87faeab2288fb741fd5ad586da5d4fa7e3ae",
+      "action": "downloaded"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/books-nc/split.pt",
+      "bytes": 3261291,
+      "sha256": "342cf47b9d6d01d22bc2e36c3e2f3671facaa61f3126358f0ca234314871077d",
+      "action": "downloaded"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/cloth-copurchase/clip_feat.pt",
+      "bytes": 515437297,
+      "sha256": "625fe7cb157d1814edaef66e253991ff6ad6c98ec33846b7270a46b949f58233",
+      "action": "verified existing"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/cloth-copurchase/lp-edge-split.pt",
+      "bytes": 281258031,
+      "sha256": "b0a0866c3595b1c4e676db7805b91ccd283ebdda71a4038f37ac9b6593964697",
+      "action": "verified existing"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/ele-fashion/clip_feat.pt",
+      "bytes": 400450289,
+      "sha256": "b2bd3cc6d9c4c2581a70567ee282580c44e486f0e55a83e62abf8935116a86c6",
+      "action": "verified existing"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/ele-fashion/labels-w-missing.pt",
+      "bytes": 196161,
+      "sha256": "888e80c154a18d61a6b8f75ed2f02f0cb9440613e631810432362857b6a33065",
+      "action": "verified existing"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/ele-fashion/nc_edges-nodeid.pt",
+      "bytes": 2923007,
+      "sha256": "6c732c72ea8e1c8e2a5ae1a53a81a80d0b122ea8bb2475801ed20776f3fdcff2",
+      "action": "verified existing"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/ele-fashion/split.pt",
+      "bytes": 358187,
+      "sha256": "e48e74afd502df5bc5e4d638e611fc4fbfdecee461aa920f3f47a6446826c52f",
+      "action": "verified existing"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/sports-copurchase/clip_feat.pt",
+      "bytes": 205824753,
+      "sha256": "b2cb0c0184c5de2b092d67cc44abca9f264223aa23ac4ef05816d661f9510f01",
+      "action": "verified existing"
+    },
+    {
+      "path": "/home/pusit.see/dataset/raw/paper_2602_00067/mm_graph/sports-copurchase/lp-edge-split.pt",
+      "bytes": 106593135,
+      "sha256": "6f5ffeb99f1aca5ea05671c6a86e5ee01a33a3673b6c3f0a24c6d482f4fa710a",
+      "action": "verified existing"
+    }
+  ],
+  "unsupported_release_folders": {
+    "mm-codex-s": "Knowledge-graph triples are supplied without cached CLIP node features.",
+    "mm-codex-m": "Knowledge-graph triples are supplied without cached CLIP node features."
+  }
+}

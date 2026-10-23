@@ -2,7 +2,7 @@
 
 A runnable, paper-guided implementation of **UniGraph2: Learning a Unified Embedding Space to Bind Multimodal Graphs** (WWW 2025), with a bounded real-data experiment. This is a method reproduction, not a replication of the published benchmark scores.
 
-The latest [RoMA and attention comparison](#roma-comparison-results-array-84359) includes 18 completed runs and an archived [Figure-3-style visualization](experiments/roma-84359/figures/figure3-routing.png).
+The latest [shared-attention comparison](#shared-attention-results-array-84392) includes **135 completed runs across five datasets**, with an archived [full report](experiments/shared-84392/REPORT.md), [performance chart](experiments/shared-84392/performance.png), and per-dataset Figure-3-style visualizations. The earlier [RoMA experiment](#roma-comparison-results-array-84359) remains archived separately.
 
 ## Completed experiment
 
@@ -203,3 +203,29 @@ RoMA freezes the shared attention together with experts/GAT/decoders and updates
 Seventeen CPU/CUDA tests passed, including explicit dense attention references; Q/K/V/output/normalization and gate gradients; dense/top-2 routing; input immutability; domain decoder isolation; deterministic unmasked evaluation; node permutation equivariance; call-local graph context; contextual teacher averaging; and the existing NC/LP checks. A separate regression against the prior model verified exact initialization/state tensors/RNG and matching CPU/CUDA inference for both existing architectures over seeds 0/1/2. End-to-end checks completed for all nine dense cases (**84389**) and shared-attention top-2 LP baseline/task/RoMA cases (**84388**). The nine-condition report and routing figures were rendered and inspected on the smoke run.
 
 The earlier incomplete sweep **84381** and dependent report **84384** were cancelled when the requested architecture changed; its artifacts are retained and excluded from the new cross-seed comparison. `shared_datasets.sbatch` runs MLP, old per-expert attention, and shared-attention MLP, each with no post-training, task-only gate tuning, and RoMA: **135 runs**, with three probe seeds for every representation. The main comparison is dense throughout; top-2 has separate gradient and end-to-end smoke checks. Candidate populations and source holdouts follow the all-dataset protocol above, and the existing defaults remain unchanged.
+
+### Shared-attention results (array 84392)
+
+All **135 runs completed**, covering five targets × three encoder seeds × three architectures × three training stages. All 1,215 representation/probe records are present. Array task jobs **84394/84395/84392** cover encoder seeds 0/1/2; worker **84396** completed seed 2's Books-LP and Amazon-Cloth cases on the freed second GPU. Each target/seed directory uses an exclusive lock, and the main task reused those 18 cases only after matching exact commands, core hashes and unchanged inputs. The completed-case reuse smoke check reused all nine cases without retraining. No model or probe setting changed during scheduling.
+
+Report/figure job **84393** completed successfully. Mean ± population standard deviation across the three encoder seeds, each the mean over probe seeds 0/1/2:
+
+| Target | Metric (%) | Original MLP | Old per-expert attention | Shared attention + MLP | Shared attention + RoMA |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Ele-Fashion | Accuracy | 84.30 ± 0.54 | 80.60 ± 0.42 | 84.54 ± 0.31 | 84.64 ± 0.55 |
+| Books-NC | Accuracy | 66.62 ± 0.41 | 46.19 ± 5.74 | 67.13 ± 1.53 | 66.73 ± 1.53 |
+| Amazon-Sports | Sampled MRR | 80.61 ± 1.27 | 49.04 ± 1.61 | 82.08 ± 0.16 | 81.83 ± 0.24 |
+| Amazon-Cloth | Sampled MRR | 65.65 ± 1.03 | 47.70 ± 2.04 | 65.38 ± 0.80 | 65.54 ± 0.95 |
+| Books-LP | Sampled MRR | 15.51 ± 2.75 | 11.70 ± 3.48 | 19.24 ± 1.50 | 19.11 ± 1.21 |
+
+The new shared-attention model has higher mean scores than the old attention experts on **all five targets**, and than the original trained MLP on **four of five**. Differences versus MLP are +0.23, +0.51, +1.47, −0.27 and +3.73 points in the table's dataset order. These are observed means, not significance claims. Shared attention adds **1,051,648 parameters** (22,073,353 total versus 21,021,705 for MLP), so this comparison matches training budgets and widths rather than parameter counts.
+
+RoMA's additional effect on the new architecture is mixed: +0.10, −0.40, −0.25, +0.16 and −0.13 points versus its own baseline. Its paired effects versus equal-budget task-only gate tuning are +0.130 ± 0.332, +0.438 ± 0.335, +0.081 ± 0.086, +0.278 ± 0.425 and −0.202 ± 0.146 points. All nine architecture/stage conditions and per-seed values are in each dataset report; no test-driven model or seed selection was performed.
+
+Pre-training with shared attention improves over its own untrained encoder only on Books-NC in this bounded experiment (65.89 → 67.13). The corresponding untrained/pre-trained values are 85.72 → 84.54 on Ele-Fashion, 83.19 → 82.08 on Sports, 65.58 → 65.38 on Cloth and 20.17 → 19.24 on Books-LP. Better scores than the older trained architecture therefore do not establish that pre-training is beneficial on every target.
+
+All targets use the first **4,096 nodes**. LP uses 100 fixed non-neighbors per query after excluding observed/reversed positives; these sampled-MRR values use a different population from official full-graph rankings. CoDEx-S/M remain outside the runnable contract because their release folders lack cached CLIP node features. The tests support both dense and top-2 routing; this performance table uses dense routing throughout.
+
+An independent compute-node audit passed for all 135 completed results, 1,215 unique probe rows, recalculated means/population standard deviations, validation-selected epoch bounds, all **81 saved LP candidate hashes**, and byte-identical archived exports. All five primary routing figures and the combined chart were visually inspected; the routing and performance PDFs were rendered and checked. [Validation receipt](experiments/shared-84392/VALIDATION.json).
+
+Archived evidence: [full report](experiments/shared-84392/REPORT.md), [performance PNG](experiments/shared-84392/performance.png) / [PDF](experiments/shared-84392/performance.pdf), [structured results](experiments/shared-84392/summary.json), [all probe scores](experiments/shared-84392/scores.csv), and [download checksums](experiments/shared-84392/download-manifest.json). Figure-3-style routing views: [Ele-Fashion](experiments/shared-84392/ele-fashion/figures/figure3-routing.png), [Books-NC](experiments/shared-84392/books-nc/figures/figure3-routing.png), [Sports](experiments/shared-84392/sports-copurchase/figures/figure3-routing.png), [Cloth](experiments/shared-84392/cloth-copurchase/figures/figure3-routing.png), [Books-LP](experiments/shared-84392/books-lp/figures/figure3-routing.png). Each dataset folder includes vector exports, all-nine-condition views, routing arrays, node IDs and source/protocol provenance. No packages were installed or upstream-tree files changed.
